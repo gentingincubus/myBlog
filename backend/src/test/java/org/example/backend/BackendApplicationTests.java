@@ -1,13 +1,15 @@
 package org.example.backend;
 
+import cn.hutool.crypto.digest.BCrypt;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
 class BackendApplicationTests {
 
     @Test
-    void contextLoads() {
+    void testBCrypt() {
+        String hash = BCrypt.hashpw("123456");
+        System.out.println("GEN_HASH: " + hash);
+        boolean ok = BCrypt.checkpw("123456", hash);
+        System.out.println("CHECK_OK: " + ok);
     }
-
 }

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds">
+
+    <!-- 日志存放路径（生成在 backend 根目录下的 logs 文件夹，上线后由服务器自动保留） -->
+    <property name="LOG_PATH" value="logs" />
+    <property name="APP_NAME" value="myblog-backend" />
+
+    <!-- 彩色控制台输出格式：包含时间、级别、线程、[MDC TraceID 链路标识]、类路径、日志信息 -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%green(%15.15thread)] [%yellow(%X{traceId:-SYSTEM})] %cyan(%-40.40logger{39}) : %msg%n" />
+
+    <!-- 磁盘文件输出格式（纯文本，不带终端颜色转义字符） -->
+    <property name="FILE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%15.15thread] [%X{traceId:-SYSTEM}] %-40.40logger{39} : %msg%n" />
+
+    <!-- 1. 控制台输出 Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 2. 全量业务日志 Appender（记录 INFO 及以上，按天滚动压缩归档） -->
+    <appender name="FILE_ALL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 历史归档日志文件名：按天分割，超过 50MB 自动编号并进行 gzip 压缩 -->
+            <fileNamePattern>${LOG_PATH}/archived/app-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- 单个日志文件最大大小 -->
+            <maxFileSize>50MB</maxFileSize>
+            <!-- 日志文件最长保留 30 天 -->
+            <maxHistory>30</maxHistory>
+            <!-- 总日志文件大小上限为 3GB -->
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 3. ERROR 独立异常日志 Appender（只拦截记录 ERROR 级别的系统报错，方便运维一秒排障） -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/error.log</file>
+        <!-- 级别过滤器：只接收 ERROR 级别日志，其余直接丢弃 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archived/error-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 业务包日志级别设定 -->
+    <logger name="org.example.backend" level="INFO" />
+
+    <!-- 全局根日志器：同时向控制台、全量文件、ERROR 独立文件三路输出 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE_ALL" />
+        <appender-ref ref="FILE_ERROR" />
+    </root>
+
+</configuration>
