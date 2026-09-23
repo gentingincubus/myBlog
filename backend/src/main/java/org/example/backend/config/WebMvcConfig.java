@@ -2,12 +2,13 @@ package org.example.backend.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * Spring MVC 核心配置类
- * 用于注册拦截器、路由映射等
+ * 用于注册拦截器、跨域映射等
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -17,6 +18,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Autowired
     private JwtInterceptor jwtInterceptor;
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        // 允许跨域访问，配合线上 Pages 或第三方域名
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -30,6 +42,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
                         "/api/auth/**",      // 登录 /register, /login 等
+                        "/api/nav/list",     // 首页公共导航列表，无需登录公开访问
                         "/error"             // Spring Boot 默认全局错误路径
                 )
                 .order(1);

@@ -62,4 +62,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+**/logs/
+*.gz
 
+# Executables & Tools
+tools/
+*.exe
+
+# System & Temp
+*.tmp
+.DS_Store
