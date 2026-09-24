@@ -1,0 +1,73 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: myblog-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "Genting#89?"
+      MYSQL_DATABASE: "myblog"
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./init-sql:/docker-entrypoint-initdb.d
+    networks:
+      - myblog-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: myblog-redis
+    restart: always
+    # 动态读取 .env 中的密码设置门禁
+    command: redis-server --requirepass ${SPRING_DATA_REDIS_PASSWORD:-123456} --appendonly yes
+    environment:
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - myblog-net
+
+  backend:
+    image: eclipse-temurin:21-jre-alpine
+    container_name: myblog-backend
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+    environment:
+      TZ: "Asia/Shanghai"
+      SPRING_PROFILES_ACTIVE: "prod"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/myblog?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: "root"
+      SPRING_DATASOURCE_PASSWORD: "Genting#89?"
+      SPRING_DATA_REDIS_HOST: "redis"
+      SPRING_DATA_REDIS_PORT: "6379"
+      # 动态读取 .env 注入 Java 容器
+      SPRING_DATA_REDIS_PASSWORD: "${SPRING_DATA_REDIS_PASSWORD:-123456}"
+      R2_ACCESS_KEY_ID: "${R2_ACCESS_KEY_ID}"
+      R2_SECRET_ACCESS_KEY: "${R2_SECRET_ACCESS_KEY}"
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    volumes:
+      - ./app/backend-0.0.1-SNAPSHOT.jar:/app/app.jar
+      - ./logs:/logs
+    working_dir: /app
+    entrypoint: ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+    networks:
+      - myblog-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: myblog-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - myblog-net
+
+networks:
+  myblog-net:
+    driver: bridge
+
