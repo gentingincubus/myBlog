@@ -41,9 +41,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                        "/api/auth/**",      // 登录 /register, /login 等
-                        "/api/nav/list",     // 首页公共导航列表，无需登录公开访问
-                        "/error"             // Spring Boot 默认全局错误路径
+                        "/api/auth/**",                 // 登录 /register, /login 等
+                        "/api/nav/list",                // 首页公共导航列表，无需登录公开访问
+                        "/api/vr/category/list",        // VR 分类列表公开查询
+                        "/api/vr/category/detail/*",    // VR 分类详情公开查询
+                        "/api/vr/scene/list",           // VR 场景点位列表公开查询
+                        "/api/vr/scene/detail/*",       // VR 场景详情公开查询
+                        "/error"                        // Spring Boot 默认全局错误路径
                 )
                 .order(1);
     }

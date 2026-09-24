@@ -60,7 +60,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 【第 4 处拦截】：兜底拦截所有未知的系统崩溃（如空指针、除以0等），防止英文堆栈泄露
+     * 【第 4 处拦截】：拦截静态资源或路由未匹配异常 (Spring Boot 3 / Spring 6 针对未命中路径的默认行为)
+     * 避免爬虫或前端 favicon 等探测请求打印大量错误堆栈
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public BasicResponse<?> handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException e) {
+        log.warn("【资源未找到】路径不存在或静态资源缺失: {}", e.getResourcePath());
+        return BasicResponse.error(404, "请求的资源或接口不存在");
+    }
+
+    /**
+     * 【第 5 处拦截】：兜底拦截所有未知的系统崩溃（如空指针、除以0等），防止英文堆栈泄露
      */
     @ExceptionHandler(Exception.class)
     public BasicResponse<?> handleException(Exception e) {

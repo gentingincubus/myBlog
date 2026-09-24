@@ -17,6 +17,12 @@ const routes = [
     meta: { title: '博客前台' }
   },
   {
+    path: '/vr',
+    name: 'vr-player',
+    component: () => import('@/views/vr/VrPlayerView.vue'),
+    meta: { title: '顺峰山 720° VR 全景漫游' }
+  },
+  {
     path: '/login',
     name: 'login',
     component: LoginView,
@@ -45,6 +51,24 @@ const routes = [
         name: 'admin-lab',
         component: LabView,
         meta: { title: '技术实验室', requiresAuth: true }
+      },
+      {
+        path: 'vr/category',
+        name: 'admin-vr-category',
+        component: () => import('@/views/admin/vr/VrCategoryManageView.vue'),
+        meta: { title: 'VR园区分类', requiresAuth: true }
+      },
+      {
+        path: 'vr/scene',
+        name: 'admin-vr-scene',
+        component: () => import('@/views/admin/vr/VrSceneManageView.vue'),
+        meta: { title: 'VR场景管理', requiresAuth: true }
+      },
+      {
+        path: 'vr/editor',
+        name: 'admin-vr-editor',
+        component: () => import('@/views/admin/vr/VrMapEditorView.vue'),
+        meta: { title: 'VR打点编辑器', requiresAuth: true }
       }
     ]
   },

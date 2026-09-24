@@ -3,6 +3,9 @@ services:
     image: mysql:8.0
     container_name: myblog-mysql
     restart: always
+    # 🔒 安全加固：仅监听宿主机 127.0.0.1 回环地址，杜绝公网扫描，专供 Navicat 通过 SSH 隧道安全直连
+    ports:
+      - "127.0.0.1:3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: "Genting#89?"
       MYSQL_DATABASE: "myblog"

@@ -2,11 +2,8 @@
   <div class="mainPageContainer">
     <!-- 顶部导航栏 (原汁原味还原动效与滑动形态，融入管理后台胶囊入口) -->
     <transition name="head" appear>
-      <div
-        v-show="isShowHead"
-        class="headContainer transition"
-        :class="isHeadTop ? 'headContainer_active' : 'headContainer_hidden'"
-      >
+      <div v-show="isShowHead" class="headContainer transition"
+        :class="isHeadTop ? 'headContainer_active' : 'headContainer_hidden'">
         <div class="head transition">
           <div class="head-left flexRowAlign">
             <div v-if="isHeadTop" class="editorText transition">MADE BY GENTING</div>
@@ -20,43 +17,30 @@
             <!-- 滚轮切页导航 -->
             <div class="navContainer flexCol transition">
               <div class="nav flexRow transition">
-                <div
-                  v-for="(item, index) of navBtnList"
-                  :key="index"
-                  class="navBtn flexRowAlign transition"
-                  :style="{ color: index === navIndex ? 'aqua' : '' }"
-                  @click="changeNav($event, index)"
-                >
+                <div v-for="(item, index) of navBtnList" :key="index" class="navBtn flexRowAlign transition"
+                  :style="{ color: index === navIndex ? 'aqua' : '' }" @click="changeNav($event, index)">
                   {{ item.name }}
                 </div>
               </div>
               <!-- 导航下滑动的青色指示线 -->
-              <div
-                class="navbar transition"
-                :style="{ width: navbarWidth + 'px', left: navbarLeft + 'px' }"
-              ></div>
+              <div class="navbar transition" :style="{ width: navbarWidth + 'px', left: navbarLeft + 'px' }"></div>
             </div>
 
             <!-- 🌟 融入顶部右上角的精致后台胶囊入口 -->
             <div class="capsule-wrap">
-              <div
-                v-if="userStore.token"
-                class="capsule-btn admin-mode"
-                title="已登录，点击进入管理中台"
-                @click="goToAdmin"
-              >
+              <div v-if="userStore.token" class="capsule-btn admin-mode" title="已登录，点击进入管理中台" @click="goToAdmin">
                 <span class="status-dot"></span>
-                <span class="capsule-text">{{ userStore.userInfo?.nickname || userStore.userInfo?.username || '管理员' }}</span>
-                <el-icon :size="13"><Right /></el-icon>
+                <span class="capsule-text">{{ userStore.userInfo?.nickname || userStore.userInfo?.username || '管理员'
+                  }}</span>
+                <el-icon :size="13">
+                  <Right />
+                </el-icon>
               </div>
 
-              <div
-                v-else
-                class="capsule-btn login-mode"
-                title="点击前往登录 / 注册"
-                @click="goToLogin"
-              >
-                <el-icon :size="14"><User /></el-icon>
+              <div v-else class="capsule-btn login-mode" title="点击前往登录 / 注册" @click="goToLogin">
+                <el-icon :size="14">
+                  <User />
+                </el-icon>
                 <span class="capsule-text">登录后台</span>
               </div>
             </div>
@@ -141,18 +125,15 @@
                 <p class="card-detail">进入后台管理系统，体验分布式锁、限流器与事务控制台</p>
                 <div class="card-jump">
                   <span>进入后台</span>
-                  <el-icon><Right /></el-icon>
+                  <el-icon>
+                    <Right />
+                  </el-icon>
                 </div>
               </div>
             </div>
 
             <!-- 动态数据库 / Redis 渲染出来的导航卡片 -->
-            <div
-              v-for="nav in dynamicNavList"
-              :key="nav.id"
-              class="matrix-card"
-              @click="handleNavJump(nav)"
-            >
+            <div v-for="nav in dynamicNavList" :key="nav.id" class="matrix-card" @click="handleNavJump(nav)">
               <div class="card-badge">{{ nav.isBlank ? '新窗口' : '站内' }}</div>
               <div class="card-icon">{{ nav.icon || '📌' }}</div>
               <div class="card-meta">
@@ -160,7 +141,9 @@
                 <p class="card-detail">{{ nav.path }}</p>
                 <div class="card-jump">
                   <span>立即访问</span>
-                  <el-icon><Right /></el-icon>
+                  <el-icon>
+                    <Right />
+                  </el-icon>
                 </div>
               </div>
             </div>
@@ -309,7 +292,13 @@ function startView(e) {
 }
 
 function goVR(mapName) {
-  ElMessage.info(`🏞️ VR 全景图库与地图浏览功能后续接入中，敬请期待！(${mapName})`)
+  if (mapName === 'leftMapPC' || mapName === 'west_park') {
+    router.push({ path: '/vr', query: { code: 'west_park' } })
+  } else if (mapName === 'rightMapPC' || mapName === 'east_park') {
+    router.push({ path: '/vr', query: { code: 'east_park' } })
+  } else {
+    router.push('/vr')
+  }
 }
 
 onMounted(() => {
@@ -842,12 +831,39 @@ onUnmounted(() => {
 }
 
 /* 弹性工具类 */
-.flexRow { display: flex; flex-direction: row; }
-.flexCol { display: flex; flex-direction: column; }
-.flexRowCenter { display: flex; flex-direction: row; justify-content: center; align-items: center; }
-.flexRowAlign { display: flex; flex-direction: row; align-items: center; }
-.flexColCenter { display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.transition { transition: all 0.5s ease-out; }
+.flexRow {
+  display: flex;
+  flex-direction: row;
+}
+
+.flexCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.flexRowCenter {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.flexRowAlign {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.flexColCenter {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.transition {
+  transition: all 0.5s ease-out;
+}
 
 /* 按钮动画 */
 .startViewBtn {
@@ -905,6 +921,7 @@ onUnmounted(() => {
     height: 0;
     opacity: 0.5;
   }
+
   100% {
     width: 500px;
     height: 500px;
@@ -925,12 +942,24 @@ onUnmounted(() => {
 }
 
 @keyframes headDown {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(0); }
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
 }
 
 @keyframes headUp {
-  0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(-100%); opacity: 0; }
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
 }
 </style>
