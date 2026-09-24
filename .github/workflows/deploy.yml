@@ -70,5 +70,6 @@ jobs:
             EOF
             chmod 600 .env
 
-            # 带着最新环境变量与新 JAR 包重新加载容器
+            # 带着最新环境变量与新 JAR 包重新加载容器，并强制重启后端使其立即加载最新 JAR
             docker compose up -d
+            docker compose restart backend
