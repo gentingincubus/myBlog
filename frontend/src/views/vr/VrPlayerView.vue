@@ -233,12 +233,12 @@ const isImmersive = ref(false)
 const currentViewName = ref('正常视角')
 const cameraHeading = ref(0) // 雷达朝向角度（0~360度）
 
-// 视点预设
+// 视点预设（100% 还原顺峰山经典四重视角与视野深度）
 const VIEW_PRESETS = {
-  NORMAL: { x: -8, y: 0, z: -2, fov: 75, maxDistance: 12, name: '正常视角' },
-  PLANET: { x: 10, y: 35, z: 10, fov: 140, maxDistance: 45, name: '小行星视角' },
-  FISHEYE: { x: -8, y: 15, z: -8, fov: 100, maxDistance: 40, name: '鱼眼视角' },
-  CRYSTAL: { x: -50, y: 50, z: -50, fov: 75, maxDistance: 110, name: '水晶球视角' }
+  NORMAL: { x: -5, y: 0, z: -5, fov: 75, maxDistance: 13, time: 3000, name: '正常视角' },
+  PLANET: { x: -5, y: 35, z: -5, fov: 140, maxDistance: 40, time: 2000, name: '小行星视角' },
+  FISHEYE: { x: -8, y: 15, z: -8, fov: 100, maxDistance: 40, time: 3000, name: '鱼眼视角' },
+  CRYSTAL: { x: -50, y: 50, z: -50, fov: 75, maxDistance: 100, time: 1500, name: '水晶球视角' }
 }
 
 // 纯原生 Three.js 变量 (严禁经过 Vue Proxy 代理，防止 GPU 矩阵更新冲突与性能断崖)
@@ -349,7 +349,7 @@ function initThree(initialScene) {
   const width = window.innerWidth
   const height = window.innerHeight
   camera = new THREE.PerspectiveCamera(140, width / height, 0.1, 1000)
-  camera.position.set(10, 35, 10)
+  camera.position.set(-5, 35, -5)
 
   // 3. WebGL 渲染器
   renderer = new THREE.WebGLRenderer({
@@ -420,25 +420,37 @@ function loadSphereMesh(url, onLoadCallback) {
   )
 }
 
-// 开场俯冲动画：从小行星视角平滑俯冲进入
+// 开场俯冲动画：从小行星视角平滑俯冲进入（还原顺峰山经典开场俯冲）
 function introOpeningAnimation(initialDeg = 0) {
+  if (!controls || !camera) return
   controls.autoRotate = false
+  controls.maxDistance = 45 // 允许从开场小行星高度开始
 
-  const start = { x: 10, y: 35, z: 10, fov: 140 }
-  const target = { x: -8, y: 0, z: -2, fov: 75 }
+  const start = { x: -5, y: 35, z: -5, fov: 140 }
+  const target = { x: -5, y: 0, z: -5, fov: 75 }
+
+  // 保证镜头初始朝向球心原点
+  camera.position.set(start.x, start.y, start.z)
+  camera.fov = start.fov
+  camera.lookAt(0, 0, 0)
+  camera.updateProjectionMatrix()
+  controls.target.set(0, 0, 0)
+  controls.update()
 
   new TWEEN.Tween(start)
-    .to(target, 3200)
-    .easing(TWEEN.Easing.Cubic.Out)
+    .to(target, 3000)
+    .easing(TWEEN.Easing.Quadratic.Out)
     .onUpdate(() => {
       camera.position.set(start.x, start.y, start.z)
       camera.fov = start.fov
+      camera.lookAt(0, 0, 0)
       camera.updateProjectionMatrix()
       controls.target.set(0, 0, 0)
+      controls.update()
     })
     .onComplete(() => {
-      controls.autoRotate = isAutoRotate.value
       controls.maxDistance = VIEW_PRESETS.NORMAL.maxDistance
+      controls.autoRotate = isAutoRotate.value
       currentViewName.value = '正常视角'
     })
     .start()
@@ -507,9 +519,14 @@ function switchScene(sceneItem) {
 // ==========================================
 function handleChangeView(modeKey) {
   const preset = VIEW_PRESETS[modeKey]
-  if (!preset) return
+  if (!preset || !camera || !controls) return
 
   currentViewName.value = preset.name
+
+  // 关键：若目标视角所需视距大于当前限制（如小行星 40、水晶球 100），先解锁 controls.maxDistance，防止被控制器立即截断
+  if (preset.maxDistance > controls.maxDistance) {
+    controls.maxDistance = preset.maxDistance
+  }
 
   const start = {
     x: camera.position.x,
@@ -518,16 +535,26 @@ function handleChangeView(modeKey) {
     fov: camera.fov
   }
 
-  controls.maxDistance = preset.maxDistance
+  const target = {
+    x: preset.x,
+    y: preset.y,
+    z: preset.z,
+    fov: preset.fov
+  }
 
   new TWEEN.Tween(start)
-    .to({ x: preset.x, y: preset.y, z: preset.z, fov: preset.fov }, 2000)
-    .easing(TWEEN.Easing.Cubic.Out)
+    .to(target, preset.time || 2000)
+    .easing(TWEEN.Easing.Quadratic.Out)
     .onUpdate(() => {
       camera.position.set(start.x, start.y, start.z)
       camera.fov = start.fov
+      camera.lookAt(0, 0, 0)
       camera.updateProjectionMatrix()
       controls.target.set(0, 0, 0)
+      controls.update()
+    })
+    .onComplete(() => {
+      controls.maxDistance = preset.maxDistance
     })
     .start()
 }

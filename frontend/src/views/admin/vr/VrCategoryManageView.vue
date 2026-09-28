@@ -123,31 +123,66 @@
         </el-form-item>
 
         <el-form-item label="导览地图底图" prop="mapUrl">
-          <div class="map-upload-container">
-            <!-- 预览框 -->
-            <div v-if="form.mapUrl" class="upload-preview-box">
-              <el-image :src="form.mapUrl" fit="cover" class="preview-img" :preview-src-list="[form.mapUrl]" />
-              <div class="preview-mask">
-                <el-icon class="remove-btn" @click="form.mapUrl = ''">
-                  <Delete />
-                </el-icon>
+          <div class="custom-upload-wrapper">
+            <!-- 已上传状态：展示底图微缩卡片，支持放大预览、点击重新上传、删除 -->
+            <div v-if="form.mapUrl" class="upload-image-card map-card">
+              <el-image
+                :src="form.mapUrl"
+                fit="cover"
+                class="card-img"
+                :preview-src-list="[form.mapUrl]"
+                preview-teleported
+              />
+              <div class="card-mask">
+                <div class="mask-action-list">
+                  <span class="mask-action-btn" title="查看底图大图" @click="openImagePreview(form.mapUrl)">
+                    <el-icon :size="16"><ZoomIn /></el-icon>
+                    <span>预览</span>
+                  </span>
+                  <el-upload
+                    class="reupload-trigger"
+                    :show-file-list="false"
+                    :http-request="handleMapUpload"
+                    accept="image/*"
+                  >
+                    <span class="mask-action-btn" title="重新选择底图替换">
+                      <el-icon :size="16"><Refresh /></el-icon>
+                      <span>重新上传</span>
+                    </span>
+                  </el-upload>
+                  <span class="mask-action-btn danger-btn" title="删除底图" @click="form.mapUrl = ''">
+                    <el-icon :size="16"><Delete /></el-icon>
+                    <span>删除</span>
+                  </span>
+                </div>
+              </div>
+              <div class="card-status-badge">
+                <el-icon><CircleCheckFilled /></el-icon>
+                <span>底图已直传 R2</span>
               </div>
             </div>
 
-            <!-- 上传按钮组件 -->
-            <el-upload v-else class="map-uploader" :show-file-list="false" :http-request="handleMapUpload"
-              accept="image/*">
-              <div class="upload-placeholder" v-loading="uploadingMap">
-                <el-icon :size="24">
-                  <UploadFilled />
-                </el-icon>
-                <div class="upload-text">点击上传底图 (直传 R2)</div>
+            <!-- 未上传状态：Element 拖拽/点击上传卡片 -->
+            <el-upload
+              v-else
+              class="map-uploader-dropzone"
+              drag
+              :show-file-list="false"
+              :http-request="handleMapUpload"
+              accept="image/*"
+              :disabled="uploadingMap"
+            >
+              <div v-loading="uploadingMap" element-loading-text="导览底图正在直传 Cloudflare R2..." class="dropzone-inner">
+                <el-icon class="dropzone-icon"><Compass /></el-icon>
+                <div class="dropzone-text">
+                  点击或拖拽上传 <em>园区导览底图</em>
+                </div>
+                <div class="dropzone-tip">
+                  建议高分辨率平面/鸟瞰图，支持最大 100MB 直传（可选，展馆类无地图可不上传）
+                </div>
               </div>
             </el-upload>
           </div>
-          <el-input v-model="form.mapUrl" placeholder="或直接粘贴 Cloudflare R2 图片直链 URL" style="margin-top: 8px;"
-            clearable />
-          <div class="form-tip">可选。室内展馆若无导览图可留空，前台会自动隐藏地图面板</div>
         </el-form-item>
 
         <el-form-item label="园区/分类简介">
@@ -180,6 +215,13 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 大图放大查看器 (支持点开全屏看大图、缩放、旋转) -->
+    <el-image-viewer
+      v-if="isViewerOpen"
+      :url-list="[previewViewerUrl]"
+      @close="isViewerOpen = false"
+    />
   </div>
 </template>
 
@@ -193,6 +235,16 @@ const router = useRouter()
 
 const loading = ref(false)
 const categoryList = ref([])
+
+// 大图全屏查看器状态
+const isViewerOpen = ref(false)
+const previewViewerUrl = ref('')
+
+function openImagePreview(url) {
+  if (!url) return
+  previewViewerUrl.value = url
+  isViewerOpen.value = true
+}
 
 // 搜索表单
 const queryForm = reactive({
@@ -416,74 +468,151 @@ onMounted(() => {
   height: 100%;
 }
 
-.map-upload-container {
+.custom-upload-wrapper {
   width: 100%;
 }
 
-.upload-preview-box {
+.upload-image-card {
   position: relative;
   width: 100%;
-  height: 140px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: #0f172a;
+  transition: all 0.3s ease;
 }
 
-.preview-img {
+.map-card {
+  height: 150px;
+}
+
+.card-img {
   width: 100%;
   height: 100%;
+  display: block;
+  cursor: pointer;
 }
 
-.preview-mask {
+.card-mask {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.25s ease;
 }
 
-.preview-mask:hover {
+.upload-image-card:hover .card-mask {
   opacity: 1;
 }
 
-.remove-btn {
-  color: #fff;
-  font-size: 22px;
-  cursor: pointer;
-  background: rgba(239, 68, 68, 0.8);
-  padding: 6px;
-  border-radius: 50%;
+.mask-action-list {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
-.upload-placeholder {
+.mask-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #f8fafc;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.mask-action-btn:hover {
+  background: rgba(255, 255, 255, 0.32);
+  transform: translateY(-2px);
+}
+
+.mask-action-btn.danger-btn:hover {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.reupload-trigger :deep(.el-upload) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.9);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.map-uploader-dropzone {
   width: 100%;
-  height: 110px;
+}
+
+.map-uploader-dropzone :deep(.el-upload) {
+  width: 100%;
+  display: block;
+}
+
+.map-uploader-dropzone :deep(.el-upload-dragger) {
+  width: 100%;
+  padding: 20px 14px;
   border: 2px dashed #cbd5e1;
   border-radius: 8px;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.map-uploader-dropzone :deep(.el-upload-dragger:hover) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.dropzone-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  color: #64748b;
-  gap: 8px;
-  background: #f8fafc;
-  transition: all 0.2s;
 }
 
-.upload-placeholder:hover {
-  border-color: #38bdf8;
-  color: #0284c7;
+.dropzone-icon {
+  font-size: 36px;
+  color: #3b82f6;
+  margin-bottom: 6px;
 }
 
-.upload-text {
+.dropzone-text {
   font-size: 13px;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.dropzone-text em {
+  color: #3b82f6;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.dropzone-tip {
+  font-size: 12px;
+  color: #94a3b8;
 }
 
 .form-tip {

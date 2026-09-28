@@ -132,31 +132,132 @@
           <el-input v-model="form.name" placeholder="例如：伏波桥、美的体育广场、牌坊" maxlength="50" show-word-limit />
         </el-form-item>
 
-        <!-- 360 全景原图上传 -->
+        <!-- 360 全景原图上传 (Element 规范卡片，隐藏原始 URL) -->
         <el-form-item label="360 全景原图" prop="panoramaUrl">
-          <div class="upload-row">
-            <el-upload class="single-uploader" :show-file-list="false" :http-request="handlePanoramaUpload"
-              accept="image/*">
-              <el-button type="primary" :loading="uploadingPano" icon="Upload">上传全景原图 (直传R2)</el-button>
+          <div class="custom-upload-wrapper">
+            <!-- 已上传状态：展示全景贴图微缩卡片，支持放大预览、点击重新上传、删除 -->
+            <div v-if="form.panoramaUrl" class="upload-image-card pano-card">
+              <el-image
+                :src="form.panoramaUrl"
+                fit="cover"
+                class="card-img"
+                :preview-src-list="[form.panoramaUrl]"
+                preview-teleported
+              />
+              <div class="card-mask">
+                <div class="mask-action-list">
+                  <span class="mask-action-btn" title="查看原图大图" @click="openImagePreview(form.panoramaUrl)">
+                    <el-icon :size="16"><ZoomIn /></el-icon>
+                    <span>预览</span>
+                  </span>
+                  <el-upload
+                    class="reupload-trigger"
+                    :show-file-list="false"
+                    :http-request="handlePanoramaUpload"
+                    accept="image/*"
+                  >
+                    <span class="mask-action-btn" title="重新选择文件替换">
+                      <el-icon :size="16"><Refresh /></el-icon>
+                      <span>重新上传</span>
+                    </span>
+                  </el-upload>
+                  <span class="mask-action-btn danger-btn" title="删除图片" @click="handleRemovePano">
+                    <el-icon :size="16"><Delete /></el-icon>
+                    <span>删除</span>
+                  </span>
+                </div>
+              </div>
+              <div class="card-status-badge">
+                <el-icon><CircleCheckFilled /></el-icon>
+                <span>已直传 R2</span>
+              </div>
+            </div>
+
+            <!-- 未上传状态：Element 拖拽/点击上传卡片 -->
+            <el-upload
+              v-else
+              class="pano-uploader-dropzone"
+              drag
+              :show-file-list="false"
+              :http-request="handlePanoramaUpload"
+              accept="image/*"
+              :disabled="uploadingPano"
+            >
+              <div v-loading="uploadingPano" element-loading-text="全景大图正在直传 Cloudflare R2..." class="dropzone-inner">
+                <el-icon class="dropzone-icon"><UploadFilled /></el-icon>
+                <div class="dropzone-text">
+                  点击或拖拽上传 <em>360 全景原图</em>
+                </div>
+                <div class="dropzone-tip">
+                  建议尺寸：4096×2048 或 8192×4096 球形等距贴图 (2:1)，支持最大 100MB
+                </div>
+              </div>
             </el-upload>
-            <span class="upload-tip-text">建议尺寸：4096x2048 或 8192x4096 球形等距贴图 (2:1)</span>
-          </div>
-          <el-input v-model="form.panoramaUrl" placeholder="全景图片直链 URL" style="margin-top: 8px;" clearable />
-          <div v-if="form.panoramaUrl" class="image-preview-bar">
-            <el-image :src="form.panoramaUrl" fit="cover" class="pano-preview" :preview-src-list="[form.panoramaUrl]" />
           </div>
         </el-form-item>
 
-        <!-- 缩略图预览上传 -->
+        <!-- 场景缩略图上传 (Element 规范卡片，隐藏原始 URL) -->
         <el-form-item label="场景缩略图" prop="previewUrl">
-          <div class="upload-row">
-            <el-upload class="single-uploader" :show-file-list="false" :http-request="handlePreviewUpload"
-              accept="image/*">
-              <el-button :loading="uploadingPreview" icon="Picture">上传缩略图 (直传R2)</el-button>
+          <div class="custom-upload-wrapper">
+            <!-- 已上传状态 -->
+            <div v-if="form.previewUrl" class="upload-image-card thumb-card">
+              <el-image
+                :src="form.previewUrl"
+                fit="cover"
+                class="card-img"
+                :preview-src-list="[form.previewUrl]"
+                preview-teleported
+              />
+              <div class="card-mask">
+                <div class="mask-action-list">
+                  <span class="mask-action-btn" title="查看缩略图" @click="openImagePreview(form.previewUrl)">
+                    <el-icon :size="16"><ZoomIn /></el-icon>
+                    <span>预览</span>
+                  </span>
+                  <el-upload
+                    class="reupload-trigger"
+                    :show-file-list="false"
+                    :http-request="handlePreviewUpload"
+                    accept="image/*"
+                  >
+                    <span class="mask-action-btn" title="重新选择文件替换">
+                      <el-icon :size="16"><Refresh /></el-icon>
+                      <span>重新上传</span>
+                    </span>
+                  </el-upload>
+                  <span class="mask-action-btn danger-btn" title="删除缩略图" @click="form.previewUrl = ''">
+                    <el-icon :size="16"><Delete /></el-icon>
+                    <span>删除</span>
+                  </span>
+                </div>
+              </div>
+              <div class="card-status-badge">
+                <el-icon><CircleCheckFilled /></el-icon>
+                <span>缩略图已就绪</span>
+              </div>
+            </div>
+
+            <!-- 未上传状态 -->
+            <el-upload
+              v-else
+              class="thumb-uploader-dropzone"
+              drag
+              :show-file-list="false"
+              :http-request="handlePreviewUpload"
+              accept="image/*"
+              :disabled="uploadingPreview"
+            >
+              <div v-loading="uploadingPreview" element-loading-text="缩略图正在直传 R2..." class="dropzone-inner thumb-inner">
+                <el-icon class="dropzone-icon"><PictureFilled /></el-icon>
+                <div class="dropzone-text">
+                  点击或拖拽上传 <em>场景缩略图</em>
+                </div>
+                <div class="dropzone-tip">
+                  可选。用于底部场景抽屉（若未上传则默认使用全景原图微缩）
+                </div>
+              </div>
             </el-upload>
-            <span class="upload-tip-text">用于场景选择抽屉与打点弹窗微缩图</span>
           </div>
-          <el-input v-model="form.previewUrl" placeholder="缩略图直链 URL（可选）" style="margin-top: 8px;" clearable />
         </el-form-item>
 
         <!-- 地图打点坐标 -->
@@ -204,6 +305,12 @@
         </span>
       </template>
     </el-dialog>
+    <!-- 大图放大查看器 (支持点开全屏看大图、缩放、旋转) -->
+    <el-image-viewer
+      v-if="isViewerOpen"
+      :url-list="[previewViewerUrl]"
+      @close="isViewerOpen = false"
+    />
   </div>
 </template>
 
@@ -219,6 +326,21 @@ const router = useRouter()
 const loading = ref(false)
 const sceneList = ref([])
 const categoryOptions = ref([])
+
+// 大图全屏查看器状态
+const isViewerOpen = ref(false)
+const previewViewerUrl = ref('')
+
+function openImagePreview(url) {
+  if (!url) return
+  previewViewerUrl.value = url
+  isViewerOpen.value = true
+}
+
+function handleRemovePano() {
+  form.panoramaUrl = ''
+  formRef.value?.validateField('panoramaUrl')
+}
 
 // 搜索条件
 const queryForm = reactive({
@@ -251,7 +373,7 @@ const form = reactive({
 const formRules = {
   categoryId: [{ required: true, message: '请选择所属园区分类', trigger: 'change' }],
   name: [{ required: true, message: '请输入场景名称', trigger: 'blur' }],
-  panoramaUrl: [{ required: true, message: '请输入或上传全景原图 URL', trigger: 'blur' }]
+  panoramaUrl: [{ required: true, message: '请上传 360 全景原图', trigger: 'change' }]
 }
 
 // 获取分类下拉列表
@@ -329,6 +451,7 @@ async function handlePanoramaUpload(options) {
     const res = await vrApi.uploadImage(file, 'vr_panorama')
     if (res.data) {
       form.panoramaUrl = res.data
+      formRef.value?.clearValidate('panoramaUrl')
       ElMessage.success('360 全景原图已成功上传到 Cloudflare R2！')
     }
   } catch (err) {
@@ -486,28 +609,162 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.upload-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.upload-tip-text {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.image-preview-bar {
-  margin-top: 8px;
+.custom-upload-wrapper {
   width: 100%;
-  height: 100px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
 }
 
-.pano-preview {
+.upload-image-card {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: #0f172a;
+  transition: all 0.3s ease;
+}
+
+.pano-card {
+  height: 160px;
+}
+
+.thumb-card {
+  height: 110px;
+}
+
+.card-img {
   width: 100%;
   height: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+.card-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.upload-image-card:hover .card-mask {
+  opacity: 1;
+}
+
+.mask-action-list {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mask-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #f8fafc;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.mask-action-btn:hover {
+  background: rgba(255, 255, 255, 0.32);
+  transform: translateY(-2px);
+}
+
+.mask-action-btn.danger-btn:hover {
+  background: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+
+.reupload-trigger :deep(.el-upload) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(16, 185, 129, 0.9);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.pano-uploader-dropzone,
+.thumb-uploader-dropzone {
+  width: 100%;
+}
+
+.pano-uploader-dropzone :deep(.el-upload),
+.thumb-uploader-dropzone :deep(.el-upload) {
+  width: 100%;
+  display: block;
+}
+
+.pano-uploader-dropzone :deep(.el-upload-dragger),
+.thumb-uploader-dropzone :deep(.el-upload-dragger) {
+  width: 100%;
+  padding: 20px 14px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.thumb-uploader-dropzone :deep(.el-upload-dragger) {
+  padding: 14px;
+}
+
+.pano-uploader-dropzone :deep(.el-upload-dragger:hover),
+.thumb-uploader-dropzone :deep(.el-upload-dragger:hover) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.dropzone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropzone-icon {
+  font-size: 36px;
+  color: #3b82f6;
+  margin-bottom: 6px;
+}
+
+.dropzone-text {
+  font-size: 13px;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.dropzone-text em {
+  color: #3b82f6;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.dropzone-tip {
+  font-size: 12px;
+  color: #94a3b8;
 }
 </style>

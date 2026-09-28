@@ -24,8 +24,21 @@ export function registerApi(data) {
   })
 }
 
+/**
+ * 修改当前登录用户密码（无需旧密码，需确认两次新密码）
+ * @param {Object} data { newPassword: string, confirmPassword: string }
+ */
+export function changePasswordApi(data) {
+  return request({
+    url: '/user/password',
+    method: 'post',
+    data
+  })
+}
+
 export const authApi = {
   login: loginApi,
-  register: registerApi
+  register: registerApi,
+  changePassword: changePasswordApi
 }
 
