@@ -4,6 +4,10 @@
 -- 特性：雪花算法ID (19位)、公共审计字段、逻辑删除、百分比防漂移坐标
 -- ============================================================
 
+-- 强制指定当前会话使用 utf8mb4 字符集，杜绝终端导入时的 Latin1 乱码
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 -- 1. VR 分类 / 园区管理表
 CREATE TABLE IF NOT EXISTS `vr_category` (
   `id` BIGINT NOT NULL COMMENT 'VR分类ID (雪花算法 19 位)',
@@ -54,7 +58,7 @@ INSERT INTO `vr_category` (`id`, `name`, `code`, `map_url`, `description`, `sort
 (2001, '顺峰山公园-西区', 'west_park', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/test/E501map.png', '顺峰山公园西园区，包含美的体育广场、伏波桥、大草地等知名景点', 1, 1, 0),
 (2002, '顺峰山公园-东区', 'east_park', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/test/E501map.png', '顺峰山公园东园区，包含顺峰牌坊、宫殿、观音堂等景点', 2, 1, 0),
 (2003, '顺峰山龙舟汇', 'dragon_boat', '', '顺峰山公园龙舟汇室内博物馆全景展区（无平面俯瞰图，纯场景漫游）', 3, 1, 0)
-ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `description`=VALUES(`description`), `map_url`=VALUES(`map_url`);
 
 -- 插入场景示例数据（百分比坐标，自适应任何屏幕与缩放）
 INSERT INTO `vr_scene` (`id`, `category_id`, `name`, `panorama_url`, `preview_url`, `top_percent`, `left_percent`, `initial_deg`, `sort`, `status`, `deleted`) VALUES
@@ -63,5 +67,6 @@ INSERT INTO `vr_scene` (`id`, `category_id`, `name`, `panorama_url`, `preview_ur
 (3003, 2001, '龙舟馆顶层', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/leftMap/longzhou_top/yasuo.jpg', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/leftMap/longzhou_top/preview.jpg', 58.70, 72.10, -45, 3, 1, 0),
 (3004, 2003, '龙舟馆入口', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/dragonBoat/rukou/yasuo.jpg', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/dragonBoat/rukou/preview.jpg', 0.00, 0.00, -32, 1, 1, 0),
 (3005, 2003, '龙舟馆中庭', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/dragonBoat/zhongjian/yasuo.jpg', 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/dragonBoat/zhongjian/preview.jpg', 0.00, 0.00, 0, 2, 1, 0)
-ON DUPLICATE KEY UPDATE `name`=VALUES(`name`);
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `panorama_url`=VALUES(`panorama_url`), `preview_url`=VALUES(`preview_url`);
+
 

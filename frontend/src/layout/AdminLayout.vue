@@ -132,7 +132,12 @@
                     <HomeFilled />
                   </el-icon> 访问前台
                 </el-dropdown-item>
-                <el-dropdown-item command="logout" style="color: #f43f5e;">
+                <el-dropdown-item command="password">
+                  <el-icon>
+                    <Lock />
+                  </el-icon> 修改密码
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" style="color: #f43f5e;" divided>
                   <el-icon>
                     <SwitchButton />
                   </el-icon> 退出登录
@@ -152,14 +157,44 @@
         </router-view>
       </main>
     </div>
+
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="pwdDialogVisible" title="修改登录密码" width="440px" destroy-on-close :close-on-click-modal="false"
+      class="custom-pwd-dialog">
+      <div style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+        为确保账户安全，请输入新密码并再次确认。修改成功后需重新登录。
+      </div>
+
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="95px" status-icon>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="请输入 6 ~ 30 位新密码"
+            autocomplete="off" clearable />
+        </el-form-item>
+
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码（防误输）"
+            autocomplete="off" clearable />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="pwdDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="pwdSubmitting" @click="handlePasswordSubmit">
+            确认修改
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { authApi } from '@/api/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -197,9 +232,71 @@ function goToHome() {
   router.push('/')
 }
 
+// ==========================================
+// 修改密码相关状态与逻辑 (免原密码验证，二次确认防手误)
+// ==========================================
+const pwdDialogVisible = ref(false)
+const pwdSubmitting = ref(false)
+const pwdFormRef = ref(null)
+
+const pwdForm = reactive({
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const validateConfirmPassword = (rule, value, callback) => {
+  if (!value) {
+    callback(new Error('请再次输入新密码'))
+  } else if (value !== pwdForm.newPassword) {
+    callback(new Error('两次输入的新密码不一致，请仔细核对'))
+  } else {
+    callback()
+  }
+}
+
+const pwdRules = {
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 30, message: '密码长度需在 6 ~ 30 位之间', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    { validator: validateConfirmPassword, trigger: 'blur' }
+  ]
+}
+
+function openPasswordDialog() {
+  pwdForm.newPassword = ''
+  pwdForm.confirmPassword = ''
+  pwdDialogVisible.value = true
+}
+
+function handlePasswordSubmit() {
+  pwdFormRef.value?.validate(async (valid) => {
+    if (!valid) return
+    pwdSubmitting.value = true
+    try {
+      await authApi.changePassword({
+        newPassword: pwdForm.newPassword,
+        confirmPassword: pwdForm.confirmPassword
+      })
+      ElMessage.success('密码修改成功，请使用新密码重新登录')
+      pwdDialogVisible.value = false
+      userStore.clearToken()
+      router.replace('/login')
+    } catch (err) {
+      // 异常拦截器会自动 Toast 提示
+    } finally {
+      pwdSubmitting.value = false
+    }
+  })
+}
+
 function handleUserCommand(cmd) {
   if (cmd === 'portal') {
     goToHome()
+  } else if (cmd === 'password') {
+    openPasswordDialog()
   } else if (cmd === 'logout') {
     ElMessageBox.confirm('确定要退出管理中台吗？', '安全提示', {
       confirmButtonText: '确定退出',

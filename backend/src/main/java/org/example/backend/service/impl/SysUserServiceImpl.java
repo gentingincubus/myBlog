@@ -101,4 +101,41 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         this.save(newUser);
     }
+
+    @Override
+    public void changePassword(org.example.backend.dto.ChangePasswordReqDto reqDto) {
+        if (reqDto == null || StrUtil.isBlank(reqDto.getNewPassword()) || StrUtil.isBlank(reqDto.getConfirmPassword())) {
+            throw new BizException("新密码与确认密码均不能为空");
+        }
+
+        String newPassword = reqDto.getNewPassword().trim();
+        String confirmPassword = reqDto.getConfirmPassword().trim();
+
+        if (newPassword.length() < 6 || newPassword.length() > 30) {
+            throw new BizException("密码长度必须在 6 ~ 30 位之间");
+        }
+
+        if (!newPassword.equals(confirmPassword)) {
+            throw new BizException("两次输入的新密码不一致，请仔细核对");
+        }
+
+        Long userId = org.example.backend.common.UserContext.getUserId();
+        if (userId == null) {
+            throw new BizException(401, "登录已失效，请重新登录后再试");
+        }
+
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            throw new BizException("当前用户不存在");
+        }
+
+        // 密码加盐哈希加密更新
+        String hashedPassword = BCrypt.hashpw(newPassword);
+        SysUser updateUser = SysUser.builder()
+                .id(userId)
+                .password(hashedPassword)
+                .build();
+
+        this.updateById(updateUser);
+    }
 }

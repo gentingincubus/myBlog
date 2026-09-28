@@ -25,4 +25,11 @@ public interface ISysUserService extends IService<SysUser> {
      * @param registerReqDto 注册入参（用户名、密码、昵称）
      */
     void register(RegisterReqDto registerReqDto);
+
+    /**
+     * 修改密码（无需验证旧密码，双重确认新密码）
+     *
+     * @param reqDto 修改密码入参
+     */
+    void changePassword(org.example.backend.dto.ChangePasswordReqDto reqDto);
 }
