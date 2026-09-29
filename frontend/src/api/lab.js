@@ -5,7 +5,7 @@ import request from './request'
  */
 export function testRateLimitApi() {
   return request({
-    url: '/lab/redisson/rate-limit',
+    url: '/admin/lab/redisson/rate-limit',
     method: 'get'
   })
 }
@@ -15,7 +15,7 @@ export function testRateLimitApi() {
  */
 export function resetLimiterApi() {
   return request({
-    url: '/lab/redisson/reset-limiter',
+    url: '/admin/lab/redisson/reset-limiter',
     method: 'post'
   })
 }
@@ -25,7 +25,7 @@ export function resetLimiterApi() {
  */
 export function testLockQueueApi() {
   return request({
-    url: '/lab/redisson/lock-queue',
+    url: '/admin/lab/redisson/lock-queue',
     method: 'get'
   })
 }
@@ -35,7 +35,7 @@ export function testLockQueueApi() {
  */
 export function testNoTxApi(makeError = true) {
   return request({
-    url: `/lab/tx/no-tx?makeError=${makeError}`,
+    url: `/admin/lab/tx/no-tx?makeError=${makeError}`,
     method: 'post'
   })
 }
@@ -45,7 +45,7 @@ export function testNoTxApi(makeError = true) {
  */
 export function testWithTxApi(makeError = true) {
   return request({
-    url: `/lab/tx/with-tx?makeError=${makeError}`,
+    url: `/admin/lab/tx/with-tx?makeError=${makeError}`,
     method: 'post'
   })
 }
@@ -55,7 +55,7 @@ export function testWithTxApi(makeError = true) {
  */
 export function cleanTxTestDataApi() {
   return request({
-    url: '/lab/tx/clean',
+    url: '/admin/lab/tx/clean',
     method: 'post'
   })
 }

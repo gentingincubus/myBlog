@@ -1,4 +1,4 @@
-package org.example.backend.controller;
+package org.example.backend.controller.common;
 
 import org.example.backend.dto.BasicResponse;
 import org.example.backend.dto.LoginReqDto;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 认证与授权控制器
+ * 通用能力 - 认证与注册控制器
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -23,9 +23,6 @@ public class AuthController {
 
     /**
      * 用户登录接口
-     *
-     * @param loginReqDto 登录入参（JSON 格式传输）
-     * @return 登录结果及 Token
      */
     @PostMapping("/login")
     public BasicResponse<LoginRespDto> login(@RequestBody LoginReqDto loginReqDto) {
@@ -34,10 +31,7 @@ public class AuthController {
     }
 
     /**
-     * 用户注册接口
-     *
-     * @param registerReqDto 注册入参（JSON 格式传输）
-     * @return 统一响应
+     * 用户注册接口（注册成功后默认绑定 common 普通用户角色）
      */
     @PostMapping("/register")
     public BasicResponse<String> register(@RequestBody RegisterReqDto registerReqDto) {

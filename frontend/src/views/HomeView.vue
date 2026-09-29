@@ -189,7 +189,7 @@ const dynamicNavList = ref([])
 // 加载后台配置并缓存在 Redis 的导航数据
 async function loadNavList() {
   try {
-    const res = await navApi.list()
+    const res = await navApi.portalList()
     if (res && res.data) {
       dynamicNavList.value = res.data
     }

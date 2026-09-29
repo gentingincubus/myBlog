@@ -1,4 +1,4 @@
-package org.example.backend.controller;
+package org.example.backend.controller.admin.lab;
 
 import org.example.backend.dto.BasicResponse;
 import org.example.backend.service.ISiteNavService;
@@ -9,10 +9,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 数据库事务（@Transactional）实战演练控制器
+ * 管理后台 - 数据库事务（@Transactional）实战演练控制器
  */
 @RestController
-@RequestMapping("/api/lab/tx")
+@RequestMapping({"/api/admin/lab/tx", "/api/lab/tx"})
 public class TxLabController {
 
     @Autowired

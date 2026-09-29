@@ -30,7 +30,7 @@
           <el-button type="warning" icon="Compass" @click="goToMapEditor(queryForm.categoryId)">
             可视化打点编辑器
           </el-button>
-          <el-button type="success" icon="Plus" @click="openAddDialog">新增场景点位</el-button>
+          <el-button type="success" icon="Plus" v-hasPermi="['vr:scene:add']" @click="openAddDialog">新增场景点位</el-button>
         </div>
       </div>
 
@@ -105,14 +105,17 @@
             <el-button type="warning" link size="small" icon="Location" @click="goToMapEditor(row.categoryId, row.id)">
               定位打点
             </el-button>
-            <el-button type="primary" link size="small" icon="Edit" @click="openEditDialog(row)">
+            <el-button type="primary" link size="small" icon="Edit" v-hasPermi="['vr:scene:edit']"
+              @click="openEditDialog(row)">
               编辑
             </el-button>
-            <el-popconfirm :title="`确定删除场景【${row.name}】吗？`" @confirm="handleDelete(row.id)">
-              <template #reference>
-                <el-button type="danger" link size="small" icon="Delete">删除</el-button>
-              </template>
-            </el-popconfirm>
+            <span v-hasPermi="['vr:scene:delete']">
+              <el-popconfirm :title="`确定删除场景【${row.name}】吗？`" @confirm="handleDelete(row.id)">
+                <template #reference>
+                  <el-button type="danger" link size="small" icon="Delete">删除</el-button>
+                </template>
+              </el-popconfirm>
+            </span>
           </template>
         </el-table-column>
       </el-table>
@@ -137,54 +140,48 @@
           <div class="custom-upload-wrapper">
             <!-- 已上传状态：展示全景贴图微缩卡片，支持放大预览、点击重新上传、删除 -->
             <div v-if="form.panoramaUrl" class="upload-image-card pano-card">
-              <el-image
-                :src="form.panoramaUrl"
-                fit="cover"
-                class="card-img"
-                :preview-src-list="[form.panoramaUrl]"
-                preview-teleported
-              />
+              <el-image :src="form.panoramaUrl" fit="cover" class="card-img" :preview-src-list="[form.panoramaUrl]"
+                preview-teleported />
               <div class="card-mask">
                 <div class="mask-action-list">
                   <span class="mask-action-btn" title="查看原图大图" @click="openImagePreview(form.panoramaUrl)">
-                    <el-icon :size="16"><ZoomIn /></el-icon>
+                    <el-icon :size="16">
+                      <ZoomIn />
+                    </el-icon>
                     <span>预览</span>
                   </span>
-                  <el-upload
-                    class="reupload-trigger"
-                    :show-file-list="false"
-                    :http-request="handlePanoramaUpload"
-                    accept="image/*"
-                  >
+                  <el-upload class="reupload-trigger" :show-file-list="false" :http-request="handlePanoramaUpload"
+                    accept="image/*">
                     <span class="mask-action-btn" title="重新选择文件替换">
-                      <el-icon :size="16"><Refresh /></el-icon>
+                      <el-icon :size="16">
+                        <Refresh />
+                      </el-icon>
                       <span>重新上传</span>
                     </span>
                   </el-upload>
                   <span class="mask-action-btn danger-btn" title="删除图片" @click="handleRemovePano">
-                    <el-icon :size="16"><Delete /></el-icon>
+                    <el-icon :size="16">
+                      <Delete />
+                    </el-icon>
                     <span>删除</span>
                   </span>
                 </div>
               </div>
               <div class="card-status-badge">
-                <el-icon><CircleCheckFilled /></el-icon>
+                <el-icon>
+                  <CircleCheckFilled />
+                </el-icon>
                 <span>已直传 R2</span>
               </div>
             </div>
 
             <!-- 未上传状态：Element 拖拽/点击上传卡片 -->
-            <el-upload
-              v-else
-              class="pano-uploader-dropzone"
-              drag
-              :show-file-list="false"
-              :http-request="handlePanoramaUpload"
-              accept="image/*"
-              :disabled="uploadingPano"
-            >
+            <el-upload v-else class="pano-uploader-dropzone" drag :show-file-list="false"
+              :http-request="handlePanoramaUpload" accept="image/*" :disabled="uploadingPano">
               <div v-loading="uploadingPano" element-loading-text="全景大图正在直传 Cloudflare R2..." class="dropzone-inner">
-                <el-icon class="dropzone-icon"><UploadFilled /></el-icon>
+                <el-icon class="dropzone-icon">
+                  <UploadFilled />
+                </el-icon>
                 <div class="dropzone-text">
                   点击或拖拽上传 <em>360 全景原图</em>
                 </div>
@@ -201,54 +198,48 @@
           <div class="custom-upload-wrapper">
             <!-- 已上传状态 -->
             <div v-if="form.previewUrl" class="upload-image-card thumb-card">
-              <el-image
-                :src="form.previewUrl"
-                fit="cover"
-                class="card-img"
-                :preview-src-list="[form.previewUrl]"
-                preview-teleported
-              />
+              <el-image :src="form.previewUrl" fit="cover" class="card-img" :preview-src-list="[form.previewUrl]"
+                preview-teleported />
               <div class="card-mask">
                 <div class="mask-action-list">
                   <span class="mask-action-btn" title="查看缩略图" @click="openImagePreview(form.previewUrl)">
-                    <el-icon :size="16"><ZoomIn /></el-icon>
+                    <el-icon :size="16">
+                      <ZoomIn />
+                    </el-icon>
                     <span>预览</span>
                   </span>
-                  <el-upload
-                    class="reupload-trigger"
-                    :show-file-list="false"
-                    :http-request="handlePreviewUpload"
-                    accept="image/*"
-                  >
+                  <el-upload class="reupload-trigger" :show-file-list="false" :http-request="handlePreviewUpload"
+                    accept="image/*">
                     <span class="mask-action-btn" title="重新选择文件替换">
-                      <el-icon :size="16"><Refresh /></el-icon>
+                      <el-icon :size="16">
+                        <Refresh />
+                      </el-icon>
                       <span>重新上传</span>
                     </span>
                   </el-upload>
                   <span class="mask-action-btn danger-btn" title="删除缩略图" @click="form.previewUrl = ''">
-                    <el-icon :size="16"><Delete /></el-icon>
+                    <el-icon :size="16">
+                      <Delete />
+                    </el-icon>
                     <span>删除</span>
                   </span>
                 </div>
               </div>
               <div class="card-status-badge">
-                <el-icon><CircleCheckFilled /></el-icon>
+                <el-icon>
+                  <CircleCheckFilled />
+                </el-icon>
                 <span>缩略图已就绪</span>
               </div>
             </div>
 
             <!-- 未上传状态 -->
-            <el-upload
-              v-else
-              class="thumb-uploader-dropzone"
-              drag
-              :show-file-list="false"
-              :http-request="handlePreviewUpload"
-              accept="image/*"
-              :disabled="uploadingPreview"
-            >
+            <el-upload v-else class="thumb-uploader-dropzone" drag :show-file-list="false"
+              :http-request="handlePreviewUpload" accept="image/*" :disabled="uploadingPreview">
               <div v-loading="uploadingPreview" element-loading-text="缩略图正在直传 R2..." class="dropzone-inner thumb-inner">
-                <el-icon class="dropzone-icon"><PictureFilled /></el-icon>
+                <el-icon class="dropzone-icon">
+                  <PictureFilled />
+                </el-icon>
                 <div class="dropzone-text">
                   点击或拖拽上传 <em>场景缩略图</em>
                 </div>
@@ -306,11 +297,7 @@
       </template>
     </el-dialog>
     <!-- 大图放大查看器 (支持点开全屏看大图、缩放、旋转) -->
-    <el-image-viewer
-      v-if="isViewerOpen"
-      :url-list="[previewViewerUrl]"
-      @close="isViewerOpen = false"
-    />
+    <el-image-viewer v-if="isViewerOpen" :url-list="[previewViewerUrl]" @close="isViewerOpen = false" />
   </div>
 </template>
 

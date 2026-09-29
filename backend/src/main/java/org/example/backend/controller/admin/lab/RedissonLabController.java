@@ -1,4 +1,4 @@
-package org.example.backend.controller;
+package org.example.backend.controller.admin.lab;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.backend.common.BizException;
@@ -21,11 +21,11 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Redisson 企业级分布式高并发实战演练控制器
+ * 管理后台 - Redisson 企业级分布式高并发实战演练控制器
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/lab/redisson")
+@RequestMapping({"/api/admin/lab/redisson", "/api/lab/redisson"})
 public class RedissonLabController {
 
     @Autowired

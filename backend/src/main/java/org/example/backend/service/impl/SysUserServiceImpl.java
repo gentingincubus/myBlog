@@ -14,13 +14,34 @@ import org.example.backend.entity.SysUser;
 import org.example.backend.mapper.SysUserMapper;
 import org.example.backend.service.ISysUserService;
 import org.example.backend.utils.JwtUtils;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.example.backend.dto.UserInfoRespDto;
+import org.example.backend.entity.SysUserRole;
+import org.example.backend.mapper.SysUserRoleMapper;
+import org.example.backend.service.ISysMenuService;
+import org.example.backend.service.ISysRoleService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 用户业务实现类
  */
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements ISysUserService {
+
+    @Autowired
+    private SysUserRoleMapper sysUserRoleMapper;
+
+    @Autowired
+    private ISysRoleService sysRoleService;
+
+    @Autowired
+    private ISysMenuService sysMenuService;
 
     @Override
     public LoginRespDto login(LoginReqDto loginReqDto) {
@@ -100,6 +121,75 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .build();
 
         this.save(newUser);
+
+        // 5. 自动分配默认角色：普通用户 (common, id = 2)
+        sysUserRoleMapper.insert(SysUserRole.builder()
+                .userId(newUser.getId())
+                .roleId(2L)
+                .build());
+    }
+
+    @Override
+    public UserInfoRespDto getCurrentUserInfo() {
+        Long userId = org.example.backend.common.UserContext.getUserId();
+        if (userId == null) {
+            throw new BizException(401, "请先登录");
+        }
+        SysUser user = this.getById(userId);
+        if (user == null) {
+            throw new BizException("用户不存在");
+        }
+        UserVo userVo = BeanUtil.copyProperties(user, UserVo.class);
+        Set<String> roles = sysRoleService.getRoleKeysByUserId(userId);
+        Set<String> permissions = sysMenuService.getPermissionsByUserId(userId);
+
+        return UserInfoRespDto.builder()
+                .user(userVo)
+                .roles(roles)
+                .permissions(permissions)
+                .build();
+    }
+
+    @Override
+    public com.baomidou.mybatisplus.core.metadata.IPage<UserVo> getUserPage(int pageNum, int pageSize, String username, Integer status) {
+        Page<SysUser> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<SysUser>()
+                .like(StrUtil.isNotBlank(username), SysUser::getUsername, username)
+                .eq(status != null, SysUser::getStatus, status)
+                .orderByDesc(SysUser::getCreateTime);
+
+        Page<SysUser> userPage = this.page(page, queryWrapper);
+        Page<UserVo> voPage = new Page<>(userPage.getCurrent(), userPage.getSize(), userPage.getTotal());
+        List<UserVo> voList = userPage.getRecords().stream()
+                .map(u -> BeanUtil.copyProperties(u, UserVo.class))
+                .collect(Collectors.toList());
+        voPage.setRecords(voList);
+        return voPage;
+    }
+
+    @Override
+    public void updateUserStatus(Long userId, Integer status) {
+        if (userId == null || status == null) {
+            throw new BizException("参数不能为空");
+        }
+        if (userId == 1L && status == 0) {
+            throw new BizException("超级管理员账号不可禁用");
+        }
+        SysUser user = SysUser.builder().id(userId).status(status).build();
+        this.updateById(user);
+    }
+
+    @Override
+    public void resetPassword(Long userId, String newPassword) {
+        if (userId == null || StrUtil.isBlank(newPassword)) {
+            throw new BizException("用户ID与新密码不能为空");
+        }
+        if (newPassword.length() < 6 || newPassword.length() > 30) {
+            throw new BizException("新密码长度必须在 6 ~ 30 位之间");
+        }
+        String hashedPassword = BCrypt.hashpw(newPassword.trim());
+        SysUser user = SysUser.builder().id(userId).password(hashedPassword).build();
+        this.updateById(user);
     }
 
     @Override
