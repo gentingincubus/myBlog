@@ -1,4 +1,4 @@
-package org.example.backend.controller;
+package org.example.backend.controller.common;
 
 import org.example.backend.dto.BasicResponse;
 import org.example.backend.service.IFileStorageService;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 通用文件上传控制器
+ * 通用能力 - 文件上传控制器（连接 Cloudflare R2 / S3 兼容对象存储）
  */
 @RestController
 @RequestMapping("/api/upload")

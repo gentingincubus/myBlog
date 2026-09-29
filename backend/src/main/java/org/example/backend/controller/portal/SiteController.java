@@ -1,4 +1,4 @@
-package org.example.backend.controller;
+package org.example.backend.controller.portal;
 
 import org.example.backend.common.UserContext;
 import org.example.backend.dto.BasicResponse;
@@ -10,15 +10,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 站点信息控制器（受 JWT 拦截器保护）
+ * 前台门户 - 站点概况与元数据控制器（公开免登）
  */
 @RestController
-@RequestMapping("/api/site")
-public class SitController {
+@RequestMapping({"/api/portal/site", "/api/site"})
+public class SiteController {
 
     @GetMapping("/info")
     public BasicResponse<Map<String, Object>> getSiteInfo() {
-        // 从当前请求的 ThreadLocal 上下文中提取当前操作者
         String currentUsername = UserContext.getUsername();
         Long currentUserId = UserContext.getUserId();
 
@@ -27,7 +26,7 @@ public class SitController {
         info.put("owner", "博主");
         info.put("status", "running");
         info.put("version", "v1.0.0");
-        info.put("currentUser", currentUsername + " (ID: " + currentUserId + ")");
+        info.put("currentUser", currentUsername != null ? currentUsername + " (ID: " + currentUserId + ")" : "访客");
         return BasicResponse.success(info);
     }
 }

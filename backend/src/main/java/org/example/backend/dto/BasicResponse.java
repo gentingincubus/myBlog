@@ -51,6 +51,18 @@ public class BasicResponse<T> implements Serializable {
     }
 
     /**
+     * 成功响应（自定义提示与数据）
+     */
+    public static <T> BasicResponse<T> success(String message, T data) {
+        BasicResponse<T> basicResponse = new BasicResponse<>();
+        basicResponse.setStatus(true);
+        basicResponse.setCode(200);
+        basicResponse.setMessage(message);
+        basicResponse.setData(data);
+        return basicResponse;
+    }
+
+    /**
      * 失败响应（默认 500 错误码）
      */
     public static <T> BasicResponse<T> error(String message) {

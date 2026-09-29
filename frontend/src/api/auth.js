@@ -36,9 +36,20 @@ export function changePasswordApi(data) {
   })
 }
 
+/**
+ * 获取当前登录用户信息（含角色与权限标识集合）
+ */
+export function getUserInfoApi() {
+  return request({
+    url: '/user/info',
+    method: 'get'
+  })
+}
+
 export const authApi = {
   login: loginApi,
   register: registerApi,
-  changePassword: changePasswordApi
+  changePassword: changePasswordApi,
+  getUserInfo: getUserInfoApi
 }
 

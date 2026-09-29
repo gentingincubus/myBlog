@@ -262,7 +262,7 @@ const currentCategory = computed(() => {
 // ==========================================
 async function initData() {
   try {
-    const res = await vrApi.categoryList({ status: 1 })
+    const res = await vrApi.portalCategoryList({ status: 1 })
     if (res.data && res.data.length > 0) {
       categoryList.value = res.data
 
@@ -297,7 +297,7 @@ async function initData() {
 // 加载指定分类下的场景列表
 async function loadCategoryScenes(categoryId) {
   try {
-    const res = await vrApi.sceneList({ categoryId, status: 1 })
+    const res = await vrApi.portalSceneList({ categoryId, status: 1 })
     if (res.data && res.data.length > 0) {
       sceneList.value = res.data
 

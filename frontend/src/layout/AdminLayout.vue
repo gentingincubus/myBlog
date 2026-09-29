@@ -18,57 +18,39 @@
       </div>
 
       <!-- 侧边导航菜单 -->
+      <!-- 侧边导航菜单 (根据用户角色权限动态渲染) -->
       <el-scrollbar class="sidebar-scroll">
         <el-menu :default-active="activeMenu" :collapse="isCollapse" :collapse-transition="false" router
           background-color="#0f172a" text-color="#94a3b8" active-text-color="#38bdf8" class="sidebar-menu">
-          <el-menu-item index="/admin/dashboard">
-            <el-icon>
-              <Odometer />
-            </el-icon>
-            <template #title>仪表盘</template>
-          </el-menu-item>
 
-          <el-menu-item index="/admin/nav">
-            <el-icon>
-              <Compass />
-            </el-icon>
-            <template #title>导航管理</template>
-          </el-menu-item>
+          <template v-for="item in menuRoutes" :key="item.id">
+            <!-- 1. 目录节点 (有子级菜单) -->
+            <el-sub-menu v-if="item.menuType === 'M' && item.children && item.children.length > 0"
+              :index="item.path || String(item.id)">
+              <template #title>
+                <el-icon v-if="item.icon">
+                  <component :is="item.icon" />
+                </el-icon>
+                <span>{{ item.menuName }}</span>
+              </template>
 
-          <!-- 🌟 VR 全景中台功能区 -->
-          <el-sub-menu index="/admin/vr">
-            <template #title>
-              <el-icon>
-                <View />
-              </el-icon>
-              <span>VR 全景中台</span>
-            </template>
-            <el-menu-item index="/admin/vr/category">
-              <el-icon>
-                <FolderOpened />
-              </el-icon>
-              <template #title>园区分类管理</template>
-            </el-menu-item>
-            <el-menu-item index="/admin/vr/scene">
-              <el-icon>
-                <PictureFilled />
-              </el-icon>
-              <template #title>全景场景管理</template>
-            </el-menu-item>
-            <el-menu-item index="/admin/vr/editor">
-              <el-icon>
-                <LocationInformation />
-              </el-icon>
-              <template #title>可视化打点</template>
-            </el-menu-item>
-          </el-sub-menu>
+              <el-menu-item v-for="child in item.children" :key="child.id" :index="child.path">
+                <el-icon v-if="child.icon">
+                  <component :is="child.icon" />
+                </el-icon>
+                <template #title>{{ child.menuName }}</template>
+              </el-menu-item>
+            </el-sub-menu>
 
-          <el-menu-item index="/admin/lab">
-            <el-icon>
-              <Cpu />
-            </el-icon>
-            <template #title>技术实验室</template>
-          </el-menu-item>
+            <!-- 2. 独立菜单项 (无子级) -->
+            <el-menu-item v-else-if="item.menuType === 'C'" :index="item.path">
+              <el-icon v-if="item.icon">
+                <component :is="item.icon" />
+              </el-icon>
+              <template #title>{{ item.menuName }}</template>
+            </el-menu-item>
+          </template>
+
         </el-menu>
       </el-scrollbar>
 
@@ -190,7 +172,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -206,20 +188,26 @@ function toggleCollapse() {
   isCollapse.value = !isCollapse.value
 }
 
+// 动态授权路由菜单列表
+const menuRoutes = computed(() => userStore.menuRoutes || [])
+
 // 当前激活的菜单项
 const activeMenu = computed(() => {
   return route.path
 })
 
-// 根据路由推断面包屑标题
+// 根据路由元信息动态推断面包屑标题
 const currentRouteTitle = computed(() => {
-  if (route.path.includes('/admin/dashboard')) return '仪表盘'
-  if (route.path.includes('/admin/nav')) return '导航管理'
-  if (route.path.includes('/admin/vr/category')) return 'VR 园区分类管理'
-  if (route.path.includes('/admin/vr/scene')) return 'VR 全景场景管理'
-  if (route.path.includes('/admin/vr/editor')) return 'VR 可视化打点编辑器'
-  if (route.path.includes('/admin/lab')) return '技术实验室'
-  return route.meta?.title || '控制台'
+  return route.meta?.title || '管理后台'
+})
+
+onMounted(async () => {
+  if (!userStore.menuRoutes || userStore.menuRoutes.length === 0) {
+    await userStore.fetchMenuRoutes()
+  }
+  if (!userStore.permissions || userStore.permissions.length === 0) {
+    await userStore.fetchUserInfo()
+  }
 })
 
 // 头像文字

@@ -9,7 +9,9 @@
       <!-- 头部 Logo 与标题 -->
       <div class="card-header">
         <div class="logo-circle">
-          <el-icon :size="28" color="#409eff"><Management /></el-icon>
+          <el-icon :size="28" color="#409eff">
+            <Management />
+          </el-icon>
         </div>
         <h2 class="title">MyBlog 管理中台</h2>
         <p class="subtitle">Personal Digital Garden & Admin Console</p>
@@ -19,46 +21,22 @@
       <el-tabs v-model="activeTab" class="auth-tabs" stretch>
         <!-- 登录表单 -->
         <el-tab-pane label="账号登录" name="login">
-          <el-form
-            ref="loginFormRef"
-            :model="loginForm"
-            :rules="loginRules"
-            label-position="top"
-            size="large"
-            @keyup.enter="handleLogin"
-          >
+          <el-form ref="loginFormRef" :model="loginForm" :rules="loginRules" label-position="top" size="large"
+            @keyup.enter="handleLogin">
             <el-form-item label="用户名" prop="username">
-              <el-input
-                v-model="loginForm.username"
-                placeholder="请输入用户名"
-                prefix-icon="User"
-                clearable
-              />
+              <el-input v-model="loginForm.username" placeholder="请输入用户名" prefix-icon="User" clearable />
             </el-form-item>
 
             <el-form-item label="密码" prop="password">
-              <el-input
-                v-model="loginForm.password"
-                type="password"
-                placeholder="请输入密码"
-                prefix-icon="Lock"
-                show-password
-                clearable
-              />
+              <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" prefix-icon="Lock"
+                show-password clearable />
             </el-form-item>
 
             <div class="form-options">
               <el-checkbox v-model="rememberMe">记住密码</el-checkbox>
-              <el-button link type="primary" size="small" @click="fillDemoAccount">填入演示账号</el-button>
             </div>
 
-            <el-button
-              type="primary"
-              size="large"
-              class="submit-btn"
-              :loading="loading"
-              @click="handleLogin"
-            >
+            <el-button type="primary" size="large" class="submit-btn" :loading="loading" @click="handleLogin">
               登 录
             </el-button>
           </el-form>
@@ -66,50 +44,22 @@
 
         <!-- 注册表单 -->
         <el-tab-pane label="新用户注册" name="register">
-          <el-form
-            ref="registerFormRef"
-            :model="registerForm"
-            :rules="registerRules"
-            label-position="top"
-            size="large"
-            @keyup.enter="handleRegister"
-          >
+          <el-form ref="registerFormRef" :model="registerForm" :rules="registerRules" label-position="top" size="large"
+            @keyup.enter="handleRegister">
             <el-form-item label="用户名" prop="username">
-              <el-input
-                v-model="registerForm.username"
-                placeholder="3~30位字母、数字或下划线"
-                prefix-icon="User"
-                clearable
-              />
+              <el-input v-model="registerForm.username" placeholder="3~30位字母、数字或下划线" prefix-icon="User" clearable />
             </el-form-item>
 
             <el-form-item label="用户昵称" prop="nickname">
-              <el-input
-                v-model="registerForm.nickname"
-                placeholder="个性昵称，如：极客行者"
-                prefix-icon="Postcard"
-                clearable
-              />
+              <el-input v-model="registerForm.nickname" placeholder="个性昵称，如：极客行者" prefix-icon="Postcard" clearable />
             </el-form-item>
 
             <el-form-item label="设置密码" prop="password">
-              <el-input
-                v-model="registerForm.password"
-                type="password"
-                placeholder="至少6位密码"
-                prefix-icon="Lock"
-                show-password
-                clearable
-              />
+              <el-input v-model="registerForm.password" type="password" placeholder="至少6位密码" prefix-icon="Lock"
+                show-password clearable />
             </el-form-item>
 
-            <el-button
-              type="success"
-              size="large"
-              class="submit-btn"
-              :loading="loading"
-              @click="handleRegister"
-            >
+            <el-button type="success" size="large" class="submit-btn" :loading="loading" @click="handleRegister">
               立 即 注 册
             </el-button>
           </el-form>
@@ -119,7 +69,9 @@
       <!-- 底部快捷回到前台 -->
       <div class="card-footer">
         <router-link to="/" class="back-home-link">
-          <el-icon><ArrowLeft /></el-icon>
+          <el-icon>
+            <ArrowLeft />
+          </el-icon>
           <span>返回博客前台</span>
         </router-link>
       </div>
@@ -184,12 +136,6 @@ const registerRules = {
   ]
 }
 
-// 快速填入默认测试账号
-function fillDemoAccount() {
-  loginForm.username = 'admin'
-  loginForm.password = '123456'
-  ElMessage.info('已填入默认演示账号 (admin / 123456)')
-}
 
 // 执行登录
 async function handleLogin() {
@@ -206,7 +152,14 @@ async function handleLogin() {
       if (res && res.data) {
         const userInfo = res.data.userInfo || res.data.user || {}
         userStore.setLoginData(res.data.token, userInfo)
-        ElMessage.success(`欢迎回来，${userInfo.nickname || userInfo.username || '管理员'}！`)
+
+        // 🌟 登录成功后立即拉取该用户的最新权限与路由菜单
+        await Promise.all([
+          userStore.fetchUserInfo(),
+          userStore.fetchMenuRoutes()
+        ])
+
+        ElMessage.success(`欢迎回来，${userInfo.nickname || userInfo.username || '用户'}！`)
 
         // 优先跳转到之前拦截的目标页面，默认进入后台仪表盘
         const redirectUrl = route.query.redirect || '/admin/dashboard'
@@ -269,6 +222,7 @@ async function handleRegister() {
   opacity: 0.45;
   pointer-events: none;
 }
+
 .shape-1 {
   width: 400px;
   height: 400px;
@@ -276,6 +230,7 @@ async function handleRegister() {
   top: -80px;
   left: -80px;
 }
+
 .shape-2 {
   width: 460px;
   height: 460px;
@@ -283,6 +238,7 @@ async function handleRegister() {
   bottom: -100px;
   right: -100px;
 }
+
 .shape-3 {
   width: 280px;
   height: 280px;

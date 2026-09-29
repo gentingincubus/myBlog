@@ -68,7 +68,26 @@ const routes = [
         path: 'vr/editor',
         name: 'admin-vr-editor',
         component: () => import('@/views/admin/vr/VrMapEditorView.vue'),
-        meta: { title: 'VR打点编辑器', requiresAuth: true }
+        meta: { title: 'VR打点编辑器', requiresAuth: true, perms: 'vr:editor:view' }
+      },
+      // 🌟 系统管理子模块
+      {
+        path: 'system/user',
+        name: 'admin-system-user',
+        component: () => import('@/views/admin/system/SysUserManageView.vue'),
+        meta: { title: '用户管理', requiresAuth: true, perms: 'sys:user:list' }
+      },
+      {
+        path: 'system/role',
+        name: 'admin-system-role',
+        component: () => import('@/views/admin/system/SysRoleManageView.vue'),
+        meta: { title: '角色管理', requiresAuth: true, perms: 'sys:role:list' }
+      },
+      {
+        path: 'system/menu',
+        name: 'admin-system-menu',
+        component: () => import('@/views/admin/system/SysMenuManageView.vue'),
+        meta: { title: '菜单管理', requiresAuth: true, perms: 'sys:menu:list' }
       }
     ]
   },
@@ -84,8 +103,8 @@ const router = createRouter({
   routes
 })
 
-// 🌟 全局路由守卫：保护 /admin 路由与页面 Title 控制
-router.beforeEach((to, from, next) => {
+// 🌟 全局路由守卫：保护 /admin 路由与 RBAC 权限过滤
+router.beforeEach(async (to, from, next) => {
   // 设置浏览器标签页标题
   if (to.meta?.title) {
     document.title = `${to.meta.title} | MyBlog`
@@ -98,11 +117,34 @@ router.beforeEach((to, from, next) => {
   if (to.matched.some(record => record.meta.requiresAuth) || to.path.startsWith('/admin')) {
     if (!hasToken) {
       ElMessage.warning('请先登录后访问管理中台')
-      // 记录来源路径，登录成功后自动回跳
       return next({
         path: '/login',
         query: { redirect: to.fullPath }
       })
+    }
+
+    // 2. 动态拉取当前用户权限与路由
+    const { useUserStore } = await import('@/stores/user')
+    const userStore = useUserStore()
+
+    if (!userStore.permissions || userStore.permissions.length === 0) {
+      await Promise.all([
+        userStore.fetchUserInfo(),
+        userStore.fetchMenuRoutes()
+      ])
+    }
+
+    // 3. 校验页面访问权限 (非超管且目标路由配置了特定权限时)
+    const requiredPerm = to.meta?.perms
+    if (requiredPerm) {
+      const perms = userStore.permissions || []
+      const isSuperAdmin = perms.includes('*:*:*')
+      const hasPerm = isSuperAdmin || perms.includes(requiredPerm)
+
+      if (!hasPerm) {
+        ElMessage.error('对不起，您暂无访问该模块的权限！')
+        return next('/admin/dashboard')
+      }
     }
   }
 

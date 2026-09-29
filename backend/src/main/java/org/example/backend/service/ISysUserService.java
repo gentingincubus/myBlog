@@ -32,4 +32,24 @@ public interface ISysUserService extends IService<SysUser> {
      * @param reqDto 修改密码入参
      */
     void changePassword(org.example.backend.dto.ChangePasswordReqDto reqDto);
+
+    /**
+     * 获取当前登录用户的综合资料（包含脱敏信息、角色列表、权限字符集合）
+     */
+    org.example.backend.dto.UserInfoRespDto getCurrentUserInfo();
+
+    /**
+     * 分页查询系统用户列表
+     */
+    com.baomidou.mybatisplus.core.metadata.IPage<org.example.backend.dto.vo.UserVo> getUserPage(int pageNum, int pageSize, String username, Integer status);
+
+    /**
+     * 修改用户账号启用/禁用状态
+     */
+    void updateUserStatus(Long userId, Integer status);
+
+    /**
+     * 管理员重置用户密码
+     */
+    void resetPassword(Long userId, String newPassword);
 }
