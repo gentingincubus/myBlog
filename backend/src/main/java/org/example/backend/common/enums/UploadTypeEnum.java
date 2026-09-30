@@ -21,7 +21,13 @@ public enum UploadTypeEnum {
     AVATAR("avatar", "user/avatars/", "用户头像"),
 
     /** 博客文章配图 */
-    BLOG_IMAGE("blog_image", "blog/articles/", "博客文章图片");
+    BLOG_IMAGE("blog_image", "blog/articles/", "博客文章图片"),
+
+    /** 首页轮播图封面 */
+    CAROUSEL_IMAGE("carousel_image", "carousel/covers/", "首页轮播图封面"),
+
+    /** 富文本插图（专用于 Markdown / 富文本编辑器插入的图片） */
+    RICH_TEXT_IMAGE("rich_text_image", "richtext/images/", "富文本插图");
 
     /** 前端传递的业务 code */
     private final String code;

@@ -47,6 +47,12 @@ const routes = [
         meta: { title: '导航管理', requiresAuth: true }
       },
       {
+        path: 'carousel',
+        name: 'admin-carousel',
+        component: () => import('@/views/admin/carousel/CarouselManageView.vue'),
+        meta: { title: '轮播图管理', requiresAuth: true, perms: 'site:carousel:list' }
+      },
+      {
         path: 'lab',
         name: 'admin-lab',
         component: LabView,
