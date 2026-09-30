@@ -45,6 +45,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/portal/**",               // 前台门户所有公开接口（导航 /portal/nav/**，全景 /portal/vr/**，站点 /portal/site/** 等）
                         "/api/nav/list",                // 兼容旧版前台导航接口
                         "/api/nav/portal/**",           // 兼容旧版前台导航别名
+                        "/api/carousel/portal/**",      // 兼容前台轮播别名
                         "/api/vr/open/**",              // 兼容旧版前台全景公开接口
                         "/api/vr/category/list",        // 兼容旧版 VR 分类列表公开查询
                         "/api/vr/category/detail/*",    // 兼容旧版 VR 分类详情公开查询

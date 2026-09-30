@@ -63,33 +63,90 @@
         <div class="footerContainer"></div>
       </div>
 
-      <!-- 区域 2：顺峰揽胜 · 数字化空间概览 (升级优雅卡片) -->
+      <!-- 区域 2：顺峰揽胜 · 3D 毛玻璃视界轮播 (自适应 80% 屏幕 & 翻转富文本) -->
       <div class="mainContainer area_2 flexColCenter">
-        <div class="area2-content flexColCenter">
-          <span class="section-tag">DIGITAL GARDEN & SCENERY</span>
-          <h2 class="area2-title">顺峰揽胜 · 数字化探索空间</h2>
-          <p class="area2-desc">
-            依山傍水，峰峦叠翠。将顺峰山岭南古典园林风骨与现代化全栈技术底座相交融，打造集数字漫游、知识沉淀与高并发实验于一体的数字花园。
-          </p>
+        <div class="carousel-section-container">
+          <!-- 区域标题 -->
+          <div class="carousel-header flexColCenter">
+            <span class="section-tag">SPATIAL HIGHLIGHTS</span>
+            <h2 class="carousel-title">顺峰揽胜 · 全景视界精选</h2>
+            <p class="carousel-subtitle">
+              探索岭南名园经典胜景 · 点击中央卡片翻转阅读图文详解
+            </p>
+          </div>
 
-          <div class="intro-cards-row">
-            <div class="intro-card">
-              <div class="intro-icon">🏞️</div>
-              <h3 class="intro-heading">岭南风骨</h3>
-              <p class="intro-p">青云塔下，桂畔湖畔，饱览南国名胜与古典园林神韵。</p>
+          <!-- 3D 轮播舞台 (屏幕 80% 黄金视口边界) -->
+          <div class="carousel-3d-stage" :style="{ width: stageMaxBound.width + 'px', height: stageMaxBound.height + 'px' }">
+            <!-- 轮播卡片群 (当前清晰，前后 N 张梯级虚化) -->
+            <div
+              v-for="(item, index) in carouselList"
+              :key="item.id"
+              class="carousel-card-item"
+              :style="getCardStyle(index)"
+              @click="handleCardClick(index)"
+            >
+              <div class="card-flipper" :class="{ 'is-flipped': isFlipped && getCardOffset(index) === 0 }">
+                <!-- 正面：封面海报 + 标题 + 提示 -->
+                <div class="card-face card-front">
+                  <img
+                    :src="item.coverUrl"
+                    class="card-img"
+                    draggable="false"
+                    @load="handleImageLoad(item.id, $event)"
+                  />
+                  <div class="card-front-glass-overlay">
+                    <div class="card-top-tag">
+                      <span class="pulse-point"></span>
+                      <span>顺峰名胜</span>
+                    </div>
+                    <div class="card-text-group">
+                      <h3 class="card-main-title">{{ item.title }}</h3>
+                      <p v-if="item.subtitle" class="card-sub-title">{{ item.subtitle }}</p>
+                    </div>
+                    <div class="flip-hint-badge">
+                      <el-icon><Refresh /></el-icon>
+                      <span>点击翻转卡片</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 背面：深色毛玻璃 + ParseText 富文本组件 + 返回按键 -->
+                <div class="card-face card-back" @click.stop>
+                  <div class="back-head-bar">
+                    <div class="back-head-info">
+                      <span class="back-dot"></span>
+                      <span class="back-title-text">{{ item.title }}</span>
+                    </div>
+                    <button class="back-return-btn" @click.stop="isFlipped = false">
+                      <el-icon><ArrowLeft /></el-icon>
+                      <span>返回正面</span>
+                    </button>
+                  </div>
+                  <div class="back-scroll-content custom-scrollbar">
+                    <ParseText :text="item.content" theme="dark" />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div class="intro-card">
-              <div class="intro-icon">🌐</div>
-              <h3 class="intro-heading">全景漫游</h3>
-              <p class="intro-p">720° 视角沉浸式记录山水地标，触手可及的云端漫步体验。</p>
-            </div>
+            <!-- 左右切换箭头按钮 (仅在多张卡片时显示) -->
+            <button v-if="carouselList.length > 1" class="carousel-arrow prev-arrow" @click.stop="prevCard" title="上一张">
+              <el-icon :size="22"><ArrowLeft /></el-icon>
+            </button>
+            <button v-if="carouselList.length > 1" class="carousel-arrow next-arrow" @click.stop="nextCard" title="下一张">
+              <el-icon :size="22"><ArrowRight /></el-icon>
+            </button>
+          </div>
 
-            <div class="intro-card">
-              <div class="intro-icon">⚡</div>
-              <h3 class="intro-heading">现代全栈</h3>
-              <p class="intro-p">Spring Boot 3 + Redis 缓存 + Redisson 强劲技术底座支撑。</p>
-            </div>
+          <!-- 底部圆点指示器 -->
+          <div v-if="carouselList.length > 1" class="carousel-indicators">
+            <span
+              v-for="(item, index) in carouselList"
+              :key="'ind-' + item.id"
+              class="indicator-dot"
+              :class="{ active: index === currentIndex }"
+              @click.stop="goToCard(index)"
+            />
           </div>
         </div>
       </div>
@@ -155,11 +212,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft, ArrowRight, Refresh } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { navApi } from '@/api/nav'
+import { carouselApi } from '@/api/carousel'
+import ParseText from '@/components/md-editor-v3/parseText.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -173,6 +233,196 @@ const navBtnList = reactive([
   { name: '漫游地图' },
   { name: '站点导航' }
 ])
+
+// ==========================================
+// 首页第二页：3D 毛玻璃自适应翻转轮播
+// ==========================================
+const defaultCarouselItems = [
+  {
+    id: 6001,
+    title: '顺峰山公园 · 中华第一牌坊',
+    subtitle: '顺德之门，气势磅礴的岭南建筑丰碑',
+    coverUrl: 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/leftMap/fuboqiao/yasuo.jpg',
+    content: `# 顺峰山公园 · 中华第一牌坊\n\n> 顺峰山牌坊享有“**中华第一牌坊**”之美誉，坐落于顺德大良顺峰山公园入口处，体量恢宏，气度万千。\n\n---\n\n### 🏛️ 建筑特色与艺术构造\n- **三跨拱券结构**：主跨雄阔，翼跨对称，整座牌坊高 38 米，宽 88 米，气势磅礴。\n- **石雕与彩绘**：融入了大量岭南传统石雕艺术，雕刻有龙凤呈祥、百鸟朝凤等生动图案。\n- **琉璃覆顶**：金黄色琉璃瓦在阳光照耀下熠熠生辉，与青云湖水倒影交相辉映。\n\n### 🌿 漫游体验推荐\n1. **晨曦初照**：清晨登临牌坊广场，朝霞映照金顶，是绝佳摄影打卡机位。\n2. **全景漫步**：从牌坊向内步入，沿着青云湖环湖绿道漫步，微风徐来，心旷神怡。`
+  },
+  {
+    id: 6002,
+    title: '青云塔与桂畔湖 · 湖光塔影',
+    subtitle: '凌霄矗立，俯瞰顺德秀美山河',
+    coverUrl: 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/leftMap/mideaSquare/yasuo.jpg',
+    content: `# 青云塔与桂畔湖 · 湖光塔影\n\n> 青云塔耸立于神步山巅，始建于明代万历年间，为顺德八景之一“**青云挺秀**”。\n\n---\n\n### ✨ 胜景特色\n- **八角七层阁楼式**：砖石垒砌，古朴雄浑，历经数百年风雨依然傲立。\n- **湖光相映**：桂畔湖碧波荡漾，与青云古塔在碧水微澜中形成“双塔映波”的经典画卷。\n- **自然生机**：湖畔红杉挺立，白鹭翔集，是顺峰山最具生态韵味的湿地核心区。\n\n> 💡 *小提示：支持通过顶部 VR 漫游系统直达青云塔下俯瞰全景。*`
+  },
+  {
+    id: 6003,
+    title: '顺峰山龙舟汇 · 水上文化方舟',
+    subtitle: '现代建筑与非遗传承的水上交响',
+    coverUrl: 'https://1967.oss-cn-guangzhou.aliyuncs.com/image/VR/dragonBoat/rukou/yasuo.jpg',
+    content: `# 顺峰山龙舟汇 · 水上文化方舟\n\n> 由清华大学建筑设计团队操刀打造，宛若一艘巨型龙舟静卧于莫家桥畔湖水之上。\n\n---\n\n### 🚣‍♂️ 场馆亮点\n- **水上方舟造型**：全钢构架与现代木纹外立面相得益彰，犹如漂浮在湖面的传统龙舟。\n- **多维互动展区**：馆内集中陈列顺德五人龙舟、传统龙首雕刻与国际锦标赛奖杯。\n- **全景沉浸漫游**：支持通过本站 720° VR 全景系统穿梭于龙舟汇中庭与屋顶观景平台。`
+  }
+]
+
+const carouselList = ref([])
+const currentIndex = ref(0)
+const isFlipped = ref(false)
+const imgDimensionsMap = reactive({})
+
+// 屏幕 80% 黄金视口边界
+const stageMaxBound = reactive({
+  width: 960,
+  height: 560
+})
+
+function updateStageBound() {
+  const w = window.innerWidth
+  const h = window.innerHeight
+  // 占满屏幕宽高的约 80%
+  stageMaxBound.width = Math.min(Math.round(w * 0.80), 1260)
+  stageMaxBound.height = Math.min(Math.round(h * 0.70), 720)
+}
+
+function handleImageLoad(id, event) {
+  const img = event.target
+  if (img && img.naturalWidth && img.naturalHeight) {
+    imgDimensionsMap[id] = {
+      w: img.naturalWidth,
+      h: img.naturalHeight,
+      ratio: img.naturalWidth / img.naturalHeight
+    }
+  }
+}
+
+// 动态尺寸计算：高度优先，超宽转宽度优先
+const activeCardSize = computed(() => {
+  const current = carouselList.value[currentIndex.value]
+  if (!current) {
+    return {
+      width: `${stageMaxBound.width}px`,
+      height: `${stageMaxBound.height}px`
+    }
+  }
+
+  const dim = imgDimensionsMap[current.id]
+  const ratio = dim ? dim.ratio : 16 / 9
+
+  // 1. 高度优先原则
+  let targetH = stageMaxBound.height
+  let targetW = targetH * ratio
+
+  // 2. 超宽转宽度优先
+  if (targetW > stageMaxBound.width) {
+    targetW = stageMaxBound.width
+    targetH = targetW / ratio
+  }
+
+  return {
+    width: `${Math.round(targetW)}px`,
+    height: `${Math.round(targetH)}px`
+  }
+})
+
+function getCardOffset(index) {
+  const len = carouselList.value.length
+  if (len <= 1) return 0
+  let diff = index - currentIndex.value
+  if (diff > len / 2) diff -= len
+  if (diff < -len / 2) diff += len
+  return diff
+}
+
+function getCardStyle(index) {
+  const d = getCardOffset(index)
+  const isCenter = d === 0
+
+  if (isCenter) {
+    return {
+      width: activeCardSize.value.width,
+      height: activeCardSize.value.height,
+      transform: 'translate3d(-50%, -50%, 0) scale(1) rotateY(0deg)',
+      filter: 'blur(0px)',
+      opacity: 1,
+      zIndex: 10,
+      pointerEvents: 'auto'
+    }
+  }
+
+  const absD = Math.abs(d)
+  if (absD > 2) {
+    return {
+      display: 'none',
+      opacity: 0,
+      pointerEvents: 'none'
+    }
+  }
+
+  const scale = absD === 1 ? 0.84 : 0.70
+  const blurPx = absD === 1 ? 6 : 12
+  const opacity = absD === 1 ? 0.65 : 0.35
+  const zIndex = 10 - absD * 3
+  const rotateDeg = d > 0 ? -18 : 18
+  const centerW = parseInt(activeCardSize.value.width, 10) || 600
+  const shiftX = d > 0 ? (centerW * 0.52 + (absD - 1) * 160 + 60) : -(centerW * 0.52 + (absD - 1) * 160 + 60)
+
+  return {
+    width: activeCardSize.value.width,
+    height: activeCardSize.value.height,
+    transform: `translate3d(calc(-50% + ${shiftX}px), -50%, -${absD * 100}px) scale(${scale}) rotateY(${rotateDeg}deg)`,
+    filter: `blur(${blurPx}px)`,
+    opacity,
+    zIndex,
+    cursor: 'pointer'
+  }
+}
+
+function handleCardClick(index) {
+  const d = getCardOffset(index)
+  if (d === 0) {
+    isFlipped.value = !isFlipped.value
+  } else {
+    goToCard(index)
+  }
+}
+
+function prevCard() {
+  if (carouselList.value.length <= 1) return
+  isFlipped.value = false
+  currentIndex.value = (currentIndex.value - 1 + carouselList.value.length) % carouselList.value.length
+}
+
+function nextCard() {
+  if (carouselList.value.length <= 1) return
+  isFlipped.value = false
+  currentIndex.value = (currentIndex.value + 1) % carouselList.value.length
+}
+
+function goToCard(index) {
+  if (currentIndex.value === index) return
+  isFlipped.value = false
+  currentIndex.value = index
+}
+
+async function loadCarouselList() {
+  try {
+    const res = await carouselApi.portalList()
+    if (res && res.data && res.data.length > 0) {
+      carouselList.value = res.data
+    } else {
+      carouselList.value = defaultCarouselItems
+    }
+  } catch (err) {
+    carouselList.value = defaultCarouselItems
+  }
+}
+
+function handleKeydown(e) {
+  if (navIndex.value !== 1) return
+  if (e.key === 'ArrowLeft') {
+    prevCard()
+  } else if (e.key === 'ArrowRight') {
+    nextCard()
+  } else if (e.key === ' ' || e.key === 'Enter') {
+    isFlipped.value = !isFlipped.value
+  }
+}
 
 // 页面滑动状态
 const mainPageScrollTop = ref(0)
@@ -303,6 +553,8 @@ function goVR(mapName) {
 
 onMounted(() => {
   loadNavList()
+  loadCarouselList()
+  updateStageBound()
   nextTick(() => {
     const btnList = document.getElementsByClassName('navBtn')
     if (btnList && btnList[navIndex.value]) {
@@ -310,10 +562,14 @@ onMounted(() => {
     }
   })
   window.addEventListener('wheel', scrollChange, { passive: true })
+  window.addEventListener('resize', updateStageBound)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('wheel', scrollChange)
+  window.removeEventListener('resize', updateStageBound)
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -391,89 +647,350 @@ onUnmounted(() => {
   margin-bottom: 30px;
 }
 
-/* ================= 区域 2：顺峰揽胜 · 空间概览 ================= */
+/* ================= 区域 2：顺峰揽胜 · 3D 毛玻璃轮播 ================= */
 .area_2 {
-  background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #0f172a 100%);
-  padding: 60px 24px;
+  background: radial-gradient(circle at 50% 30%, #064e3b 0%, #065f46 40%, #0f172a 100%);
+  padding: 24px 20px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.carousel-section-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
   box-sizing: border-box;
 }
 
-.area2-content {
-  max-width: 960px;
-  width: 100%;
+.carousel-header {
   text-align: center;
+  margin-bottom: 12px;
 }
 
 .section-tag {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 2px;
   color: #34d399;
   background: rgba(52, 211, 153, 0.12);
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 20px;
   border: 1px solid rgba(52, 211, 153, 0.3);
-  margin-bottom: 16px;
+  margin-bottom: 6px;
+  display: inline-block;
 }
 
-.area2-title {
-  font-size: clamp(28px, 3.2vw, 42px);
+.carousel-title {
+  font-size: clamp(24px, 2.6vw, 36px);
   color: #f8fafc;
-  margin: 0 0 16px;
+  margin: 0 0 6px;
   font-weight: 800;
   letter-spacing: 1px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-.area2-desc {
-  font-size: 15px;
-  line-height: 1.8;
-  color: #cbd5e1;
-  max-width: 720px;
-  margin: 0 auto 40px;
+.carousel-subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
 }
 
-.intro-cards-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
+/* 3D 轮播舞台容器 (屏幕 80% 黄金视口边界) */
+.carousel-3d-stage {
+  position: relative;
+  perspective: 1400px;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+}
+
+/* 轮播单卡片外壳 */
+.carousel-card-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1),
+              filter 0.6s ease,
+              opacity 0.6s ease,
+              width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+              height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform, filter, opacity, width, height;
+}
+
+/* 3D 翻转器 (Flip Card) */
+.card-flipper {
   width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.intro-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  padding: 30px 24px;
-  text-align: left;
+.card-flipper.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* 卡片正反面通用样式 */
+.card-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+/* 正面海报 */
+.card-front {
+  transform: rotateY(0deg);
+  background: #0f172a;
+  cursor: pointer;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-front-glass-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.5) 50%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.card-top-tag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.pulse-point {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.card-main-title {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 800;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.card-sub-title {
+  margin: 6px 0 0;
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.5;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.flip-hint-badge {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  margin-top: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   transition: all 0.3s;
 }
 
-.intro-card:hover {
-  transform: translateY(-6px);
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(52, 211, 153, 0.5);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+.carousel-card-item:hover .flip-hint-badge {
+  background: rgba(56, 189, 248, 0.3);
+  border-color: rgba(56, 189, 248, 0.6);
+  color: #38bdf8;
+  transform: translateY(-2px);
 }
 
-.intro-icon {
-  font-size: 32px;
-  margin-bottom: 14px;
+/* 反面富文本 */
+.card-back {
+  transform: rotateY(180deg);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
 }
 
-.intro-heading {
-  font-size: 18px;
+.back-head-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.back-head-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.back-dot {
+  width: 8px;
+  height: 8px;
+  background: #38bdf8;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #38bdf8;
+}
+
+.back-title-text {
+  font-size: 16px;
   font-weight: 700;
   color: #f8fafc;
-  margin: 0 0 8px;
 }
 
-.intro-p {
-  font-size: 13px;
-  color: #94a3b8;
-  line-height: 1.6;
-  margin: 0;
+.back-return-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.back-return-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  transform: translateX(-2px);
+}
+
+.back-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 24px;
+}
+
+/* 左右浮动切换按键 */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 50;
+  transition: all 0.3s;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.carousel-arrow:hover {
+  background: rgba(56, 189, 248, 0.4);
+  border-color: #38bdf8;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 10px 30px rgba(56, 189, 248, 0.4);
+}
+
+.prev-arrow {
+  left: -24px;
+}
+
+.next-arrow {
+  right: -24px;
+}
+
+/* 底部指示圆点 */
+.carousel-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  z-index: 30;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.indicator-dot:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.indicator-dot.active {
+  width: 26px;
+  background: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+}
+
+/* 自定义精巧滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 /* ================= 区域 3：顺峰山 VR 地图 ================= */

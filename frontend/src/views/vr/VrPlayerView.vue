@@ -295,14 +295,14 @@ async function initData() {
 }
 
 // 加载指定分类下的场景列表
-async function loadCategoryScenes(categoryId) {
+async function loadCategoryScenes(categoryId, isCategorySwitch = false) {
   try {
     const res = await vrApi.portalSceneList({ categoryId, status: 1 })
     if (res.data && res.data.length > 0) {
       sceneList.value = res.data
 
-      // 如果有指定的 sceneId
-      const querySceneId = route.query.sceneId
+      // 如果有指定的 sceneId（仅首次进入且非用户主动切换分类时生效）
+      const querySceneId = isCategorySwitch ? null : route.query.sceneId
       let targetScene = null
       if (querySceneId) {
         targetScene = sceneList.value.find(s => String(s.id) === String(querySceneId))
@@ -325,6 +325,7 @@ async function loadCategoryScenes(categoryId) {
     }
   } catch (err) {
     ElMessage.error('拉取场景列表失败')
+    loading.value = false
   }
 }
 
@@ -333,7 +334,7 @@ async function switchCategory(catId) {
   if (currentCategoryId.value === catId) return
   currentCategoryId.value = catId
   loading.value = true
-  await loadCategoryScenes(catId)
+  await loadCategoryScenes(catId, true)
 }
 
 // ==========================================
@@ -460,58 +461,82 @@ function introOpeningAnimation(initialDeg = 0) {
 // 3. 显存泄露防御型场景切换 (Cross-Fade 交叉平滑淡入淡出)
 // ==========================================
 function switchScene(sceneItem) {
-  if (currentScene.value?.id === sceneItem.id || isTransitioning) return
+  if (!sceneItem) {
+    loading.value = false
+    return
+  }
+  if (currentScene.value?.id === sceneItem.id) {
+    loading.value = false
+    return
+  }
+  if (isTransitioning) {
+    loading.value = false
+    return
+  }
   isTransitioning = true
   currentScene.value = sceneItem
 
   // 1. 加载新场景贴图
-  textureLoader.load(sceneItem.panoramaUrl, (newTexture) => {
-    newTexture.colorSpace = THREE.SRGBColorSpace
-    newTexture.minFilter = THREE.LinearFilter
-    newTexture.generateMipmaps = false
+  textureLoader.load(
+    sceneItem.panoramaUrl,
+    (newTexture) => {
+      newTexture.colorSpace = THREE.SRGBColorSpace
+      newTexture.minFilter = THREE.LinearFilter
+      newTexture.generateMipmaps = false
 
-    // 2. 构建新球体，初始透明度为 0
-    const geometry = new THREE.SphereGeometry(40, 64, 40)
-    geometry.scale(1, 1, -1)
+      // 2. 构建新球体，初始透明度为 0
+      const geometry = new THREE.SphereGeometry(40, 64, 40)
+      geometry.scale(1, 1, -1)
 
-    const newMaterial = new THREE.MeshBasicMaterial({
-      map: newTexture,
-      transparent: true,
-      opacity: 0
-    })
-
-    const nextSphere = new THREE.Mesh(geometry, newMaterial)
-    scene.add(nextSphere)
-
-    const oldSphere = currentSphere
-
-    // 3. 利用 TWEEN 执行双球透明度交叉渐变
-    const fadeObj = { opacity: 0 }
-    new TWEEN.Tween(fadeObj)
-      .to({ opacity: 1 }, 1200)
-      .easing(TWEEN.Easing.Quadratic.InOut)
-      .onUpdate(() => {
-        newMaterial.opacity = fadeObj.opacity
-        if (oldSphere) {
-          oldSphere.material.opacity = 1 - fadeObj.opacity
-        }
+      const newMaterial = new THREE.MeshBasicMaterial({
+        map: newTexture,
+        transparent: true,
+        opacity: 0
       })
-      .onComplete(() => {
-        // 🌟 核心显存释放：将旧网格从场景彻底移除并 Dispose 显存
-        if (oldSphere) {
-          scene.remove(oldSphere)
-          oldSphere.geometry.dispose()
-          if (oldSphere.material.map) {
-            oldSphere.material.map.dispose()
+
+      const nextSphere = new THREE.Mesh(geometry, newMaterial)
+      scene.add(nextSphere)
+
+      const oldSphere = currentSphere
+
+      // 🌟 核心修复：新场景贴图加载完毕，立即关闭全屏 loading 遮罩
+      loading.value = false
+
+      // 3. 利用 TWEEN 执行双球透明度交叉渐变
+      const fadeObj = { opacity: 0 }
+      new TWEEN.Tween(fadeObj)
+        .to({ opacity: 1 }, 1200)
+        .easing(TWEEN.Easing.Quadratic.InOut)
+        .onUpdate(() => {
+          newMaterial.opacity = fadeObj.opacity
+          if (oldSphere) {
+            oldSphere.material.opacity = 1 - fadeObj.opacity
           }
-          oldSphere.material.dispose()
-        }
+        })
+        .onComplete(() => {
+          // 🌟 核心显存释放：将旧网格从场景彻底移除并 Dispose 显存
+          if (oldSphere) {
+            scene.remove(oldSphere)
+            oldSphere.geometry.dispose()
+            if (oldSphere.material.map) {
+              oldSphere.material.map.dispose()
+            }
+            oldSphere.material.dispose()
+          }
 
-        currentSphere = nextSphere
-        isTransitioning = false
-      })
-      .start()
-  })
+          currentSphere = nextSphere
+          isTransitioning = false
+        })
+        .start()
+    },
+    undefined,
+    (err) => {
+      console.error('切换场景贴图加载失败', err)
+      ElMessage.error('全景图片加载失败，请检查网络或直链')
+      isTransitioning = false
+      loading.value = false
+    }
+  )
 }
 
 // ==========================================
