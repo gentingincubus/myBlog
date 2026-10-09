@@ -21,3 +21,4 @@
      - 一键批量清理孤儿废图（带危险弹窗二次确认与清理结果通知）。
 3. **系统路由注册**:
    - `src/router/index.js`: 在系统管理下注册 `/admin/system/storage` 路由，关联 `system:storage:view` 权限。
+
