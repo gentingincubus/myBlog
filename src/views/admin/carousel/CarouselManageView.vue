@@ -159,7 +159,13 @@
 
         <el-form-item label="封面图片" prop="coverUrl">
           <div class="cover-uploader-box">
-            <div v-if="form.coverUrl" class="cover-preview-card">
+            <div
+              v-if="form.coverUrl"
+              class="cover-preview-card"
+              v-loading="uploadCoverLoading"
+              element-loading-text="正在上传..."
+              element-loading-background="rgba(255, 255, 255, 0.85)"
+            >
               <el-image
                 :src="form.coverUrl"
                 fit="cover"
@@ -171,11 +177,12 @@
                 <el-upload
                   :show-file-list="false"
                   :http-request="handleCoverUpload"
+                  :disabled="uploadCoverLoading"
                   accept="image/*"
                 >
-                  <el-button type="primary" size="small" icon="Refresh">替换封面</el-button>
+                  <el-button type="primary" size="small" icon="Refresh" :loading="uploadCoverLoading">替换封面</el-button>
                 </el-upload>
-                <el-button type="danger" size="small" icon="Delete" @click="form.coverUrl = ''">删除</el-button>
+                <el-button type="danger" size="small" icon="Delete" :disabled="uploadCoverLoading" @click="form.coverUrl = ''">删除</el-button>
               </div>
             </div>
 
@@ -185,11 +192,21 @@
               drag
               :show-file-list="false"
               :http-request="handleCoverUpload"
+              :disabled="uploadCoverLoading"
               accept="image/*"
             >
-              <el-icon class="uploader-icon"><Plus /></el-icon>
-              <div class="el-upload__text">
-                点击或拖拽上传封面图到 <em>Cloudflare R2</em> (carousel/covers/)
+              <div
+                class="cover-drop-inner"
+                v-loading="uploadCoverLoading"
+                element-loading-text="正在上传..."
+                element-loading-background="rgba(255, 255, 255, 0.85)"
+              >
+                <template v-if="!uploadCoverLoading">
+                  <el-icon class="uploader-icon"><Plus /></el-icon>
+                  <div class="el-upload__text">
+                    点击或拖拽上传封面图到 <em>Cloudflare R2</em> (carousel/covers/)
+                  </div>
+                </template>
               </div>
             </el-upload>
           </div>
@@ -279,6 +296,7 @@ const queryForm = reactive({
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitLoading = ref(false)
+const uploadCoverLoading = ref(false)
 const formRef = ref(null)
 
 const form = reactive({
@@ -364,15 +382,21 @@ function openEditDialog(row) {
 
 // 封面图片上传至 Cloudflare R2 (carousel/covers/)
 async function handleCoverUpload(options) {
+  if (uploadCoverLoading.value) return
   const file = options.file
+  uploadCoverLoading.value = true
   try {
     const res = await uploadImageApi(file, 'carousel_image')
     if (res && res.data) {
       form.coverUrl = res.data
-      ElMessage.success('封面图片已成功上传至 Cloudflare R2')
+      formRef.value?.clearValidate('coverUrl')
+      ElMessage.success('封面图片已成功上传至 Cloudflare R2！')
     }
   } catch (err) {
-    ElMessage.error('封面上传失败，请重试')
+    console.error('封面上传失败:', err)
+    ElMessage.error(err?.response?.data?.message || err?.message || '封面上传失败，请重试')
+  } finally {
+    uploadCoverLoading.value = false
   }
 }
 
@@ -506,6 +530,14 @@ onMounted(() => {
   padding: 20px;
   border-radius: 8px;
   border: 1px dashed #cbd5e1;
+}
+
+.cover-drop-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
 }
 
 .uploader-icon {
