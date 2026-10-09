@@ -96,6 +96,12 @@ const routes = [
         name: 'admin-system-menu',
         component: () => import('@/views/admin/system/SysMenuManageView.vue'),
         meta: { title: '菜单管理', requiresAuth: true, perms: 'sys:menu:list' }
+      },
+      {
+        path: 'system/storage',
+        name: 'admin-system-storage',
+        component: () => import('@/views/admin/system/StorageManageView.vue'),
+        meta: { title: '存储管理', requiresAuth: true, perms: 'system:storage:view' }
       }
     ]
   },
