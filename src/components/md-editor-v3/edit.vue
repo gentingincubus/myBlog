@@ -51,11 +51,14 @@ function handleSave(val) {
   emit('save', val)
 }
 
+const uploadingImg = ref(false)
+
 /**
  * 🌟 核心：富文本图片上传事件，直连 Cloudflare R2 的 richtext/images/ 专用文件夹
  */
 async function handleUploadImg(files, callback) {
   if (!files || files.length === 0) return
+  uploadingImg.value = true
 
   try {
     const uploadPromises = Array.from(files).map(async (file) => {
@@ -85,6 +88,8 @@ async function handleUploadImg(files, callback) {
   } catch (err) {
     console.error('富文本插图上传失败', err)
     ElMessage.error('图片上传失败，请检查网络或配置')
+  } finally {
+    uploadingImg.value = false
   }
 }
 
@@ -120,7 +125,12 @@ const toolbars = [
 </script>
 
 <template>
-  <div class="custom-md-editor">
+  <div
+    class="custom-md-editor"
+    v-loading="uploadingImg"
+    element-loading-text="正在上传..."
+    element-loading-background="rgba(255, 255, 255, 0.85)"
+  >
     <MdEditor
       v-model="content"
       :style="{ height: height }"
@@ -128,7 +138,7 @@ const toolbars = [
       :preview-theme="previewTheme"
       :toolbars="toolbars"
       :placeholder="placeholder"
-      :disabled="disabled"
+      :disabled="disabled || uploadingImg"
       @on-change="handleChange"
       @on-save="handleSave"
       @on-upload-img="handleUploadImg"

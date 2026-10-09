@@ -122,7 +122,7 @@
     </el-card>
 
     <!-- 新增 / 修改 对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 VR 场景点位' : '新增 VR 场景点位'" width="640px" destroy-on-close
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 VR 场景点位' : '新增 VR 场景点位'" width="780px" destroy-on-close
       :close-on-click-modal="false" class="custom-dialog">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="110px" class="dialog-form">
         <el-form-item label="所属园区" prop="categoryId">
@@ -139,7 +139,13 @@
         <el-form-item label="360 全景原图" prop="panoramaUrl">
           <div class="custom-upload-wrapper">
             <!-- 已上传状态：展示全景贴图微缩卡片，支持放大预览、点击重新上传、删除 -->
-            <div v-if="form.panoramaUrl" class="upload-image-card pano-card">
+            <div
+              v-if="form.panoramaUrl"
+              class="upload-image-card pano-card"
+              v-loading="uploadingPano"
+              element-loading-text="正在上传..."
+              element-loading-background="rgba(255, 255, 255, 0.85)"
+            >
               <el-image :src="form.panoramaUrl" fit="cover" class="card-img" :preview-src-list="[form.panoramaUrl]"
                 preview-teleported />
               <div class="card-mask">
@@ -150,8 +156,13 @@
                     </el-icon>
                     <span>预览</span>
                   </span>
-                  <el-upload class="reupload-trigger" :show-file-list="false" :http-request="handlePanoramaUpload"
-                    accept="image/*">
+                  <el-upload
+                    class="reupload-trigger"
+                    :show-file-list="false"
+                    :http-request="handlePanoramaUpload"
+                    :disabled="uploadingPano"
+                    accept="image/*"
+                  >
                     <span class="mask-action-btn" title="重新选择文件替换">
                       <el-icon :size="16">
                         <Refresh />
@@ -178,16 +189,18 @@
             <!-- 未上传状态：Element 拖拽/点击上传卡片 -->
             <el-upload v-else class="pano-uploader-dropzone" drag :show-file-list="false"
               :http-request="handlePanoramaUpload" accept="image/*" :disabled="uploadingPano">
-              <div v-loading="uploadingPano" element-loading-text="全景大图正在直传 Cloudflare R2..." class="dropzone-inner">
-                <el-icon class="dropzone-icon">
-                  <UploadFilled />
-                </el-icon>
-                <div class="dropzone-text">
-                  点击或拖拽上传 <em>360 全景原图</em>
-                </div>
-                <div class="dropzone-tip">
-                  建议尺寸：4096×2048 或 8192×4096 球形等距贴图 (2:1)，支持最大 100MB
-                </div>
+              <div v-loading="uploadingPano" element-loading-text="正在上传..." class="dropzone-inner">
+                <template v-if="!uploadingPano">
+                  <el-icon class="dropzone-icon">
+                    <UploadFilled />
+                  </el-icon>
+                  <div class="dropzone-text">
+                    点击或拖拽上传 <em>360 全景原图</em>
+                  </div>
+                  <div class="dropzone-tip">
+                    建议尺寸：4096×2048 或 8192×4096 球形等距贴图 (2:1)，支持最大 100MB
+                  </div>
+                </template>
               </div>
             </el-upload>
           </div>
@@ -197,7 +210,13 @@
         <el-form-item label="场景缩略图" prop="previewUrl">
           <div class="custom-upload-wrapper">
             <!-- 已上传状态 -->
-            <div v-if="form.previewUrl" class="upload-image-card thumb-card">
+            <div
+              v-if="form.previewUrl"
+              class="upload-image-card thumb-card"
+              v-loading="uploadingPreview"
+              element-loading-text="正在上传..."
+              element-loading-background="rgba(255, 255, 255, 0.85)"
+            >
               <el-image :src="form.previewUrl" fit="cover" class="card-img" :preview-src-list="[form.previewUrl]"
                 preview-teleported />
               <div class="card-mask">
@@ -208,8 +227,13 @@
                     </el-icon>
                     <span>预览</span>
                   </span>
-                  <el-upload class="reupload-trigger" :show-file-list="false" :http-request="handlePreviewUpload"
-                    accept="image/*">
+                  <el-upload
+                    class="reupload-trigger"
+                    :show-file-list="false"
+                    :http-request="handlePreviewUpload"
+                    :disabled="uploadingPreview"
+                    accept="image/*"
+                  >
                     <span class="mask-action-btn" title="重新选择文件替换">
                       <el-icon :size="16">
                         <Refresh />
@@ -236,16 +260,18 @@
             <!-- 未上传状态 -->
             <el-upload v-else class="thumb-uploader-dropzone" drag :show-file-list="false"
               :http-request="handlePreviewUpload" accept="image/*" :disabled="uploadingPreview">
-              <div v-loading="uploadingPreview" element-loading-text="缩略图正在直传 R2..." class="dropzone-inner thumb-inner">
-                <el-icon class="dropzone-icon">
-                  <PictureFilled />
-                </el-icon>
-                <div class="dropzone-text">
-                  点击或拖拽上传 <em>场景缩略图</em>
-                </div>
-                <div class="dropzone-tip">
-                  可选。用于底部场景抽屉（若未上传则默认使用全景原图微缩）
-                </div>
+              <div v-loading="uploadingPreview" element-loading-text="正在上传..." class="dropzone-inner thumb-inner">
+                <template v-if="!uploadingPreview">
+                  <el-icon class="dropzone-icon">
+                    <PictureFilled />
+                  </el-icon>
+                  <div class="dropzone-text">
+                    点击或拖拽上传 <em>场景缩略图</em>
+                  </div>
+                  <div class="dropzone-tip">
+                    可选。用于底部场景抽屉（若未上传则默认使用全景原图微缩）
+                  </div>
+                </template>
               </div>
             </el-upload>
           </div>
@@ -282,6 +308,13 @@
           </el-col>
         </el-row>
 
+        <!-- 🌟 场景专属脚底补地遮罩 (默认继承园区配置，可场景个别覆盖定制) -->
+        <NadirConfigPanel
+          v-model="form.nadirConfig"
+          :is-scene-level="true"
+          title="场景独立脚底补地遮罩 (Nadir Patch)"
+        />
+
         <el-form-item label="启用状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
         </el-form-item>
@@ -306,6 +339,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { vrApi } from '@/api/vr'
+import NadirConfigPanel from './components/NadirConfigPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -353,6 +387,7 @@ const form = reactive({
   leftPercent: 0,
   topPercent: 0,
   initialDeg: 0,
+  nadirConfig: '',
   sort: 1,
   status: 1
 })
@@ -409,6 +444,7 @@ function openAddDialog() {
   form.leftPercent = 50.00
   form.topPercent = 50.00
   form.initialDeg = 0
+  form.nadirConfig = '' // 默认继承园区配置
   form.sort = (sceneList.value.length + 1) * 10
   form.status = 1
   dialogVisible.value = true
@@ -425,6 +461,7 @@ function openEditDialog(row) {
   form.leftPercent = Number(row.leftPercent) || 0
   form.topPercent = Number(row.topPercent) || 0
   form.initialDeg = row.initialDeg || 0
+  form.nadirConfig = row.nadirConfig || ''
   form.sort = row.sort || 0
   form.status = row.status !== undefined ? row.status : 1
   dialogVisible.value = true
@@ -432,6 +469,7 @@ function openEditDialog(row) {
 
 // 上传全景图直传 R2
 async function handlePanoramaUpload(options) {
+  if (uploadingPano.value) return
   const file = options.file
   uploadingPano.value = true
   try {
@@ -442,7 +480,8 @@ async function handlePanoramaUpload(options) {
       ElMessage.success('360 全景原图已成功上传到 Cloudflare R2！')
     }
   } catch (err) {
-    ElMessage.error('全景原图上传失败')
+    console.error('全景原图上传失败:', err)
+    ElMessage.error(err?.response?.data?.message || err?.message || '全景原图上传失败，请重试')
   } finally {
     uploadingPano.value = false
   }
@@ -450,16 +489,18 @@ async function handlePanoramaUpload(options) {
 
 // 上传预览缩略图直传 R2
 async function handlePreviewUpload(options) {
+  if (uploadingPreview.value) return
   const file = options.file
   uploadingPreview.value = true
   try {
     const res = await vrApi.uploadImage(file, 'vr_preview')
     if (res.data) {
       form.previewUrl = res.data
-      ElMessage.success('场景缩略图上传成功！')
+      ElMessage.success('场景缩略图已成功上传到 Cloudflare R2！')
     }
   } catch (err) {
-    ElMessage.error('缩略图上传失败')
+    console.error('缩略图上传失败:', err)
+    ElMessage.error(err?.response?.data?.message || err?.message || '缩略图上传失败，请重试')
   } finally {
     uploadingPreview.value = false
   }

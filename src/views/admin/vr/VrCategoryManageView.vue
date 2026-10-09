@@ -109,7 +109,7 @@
     </el-card>
 
     <!-- 新增 / 修改 对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 VR 园区分类' : '新增 VR 园区分类'" width="560px" destroy-on-close
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 VR 园区分类' : '新增 VR 园区分类'" width="760px" destroy-on-close
       :close-on-click-modal="false" class="custom-dialog">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="110px" class="dialog-form">
         <el-form-item label="分类名称" prop="name">
@@ -125,7 +125,13 @@
         <el-form-item label="导览地图底图" prop="mapUrl">
           <div class="custom-upload-wrapper">
             <!-- 已上传状态：展示底图微缩卡片，支持放大预览、点击重新上传、删除 -->
-            <div v-if="form.mapUrl" class="upload-image-card map-card">
+            <div
+              v-if="form.mapUrl"
+              class="upload-image-card map-card"
+              v-loading="uploadingMap"
+              element-loading-text="正在上传..."
+              element-loading-background="rgba(255, 255, 255, 0.85)"
+            >
               <el-image
                 :src="form.mapUrl"
                 fit="cover"
@@ -143,6 +149,7 @@
                     class="reupload-trigger"
                     :show-file-list="false"
                     :http-request="handleMapUpload"
+                    :disabled="uploadingMap"
                     accept="image/*"
                   >
                     <span class="mask-action-btn" title="重新选择底图替换">
@@ -172,18 +179,27 @@
               accept="image/*"
               :disabled="uploadingMap"
             >
-              <div v-loading="uploadingMap" element-loading-text="导览底图正在直传 Cloudflare R2..." class="dropzone-inner">
-                <el-icon class="dropzone-icon"><Compass /></el-icon>
-                <div class="dropzone-text">
-                  点击或拖拽上传 <em>园区导览底图</em>
-                </div>
-                <div class="dropzone-tip">
-                  建议高分辨率平面/鸟瞰图，支持最大 100MB 直传（可选，展馆类无地图可不上传）
-                </div>
+              <div v-loading="uploadingMap" element-loading-text="正在上传..." class="dropzone-inner">
+                <template v-if="!uploadingMap">
+                  <el-icon class="dropzone-icon"><Compass /></el-icon>
+                  <div class="dropzone-text">
+                    点击或拖拽上传 <em>园区导览底图</em>
+                  </div>
+                  <div class="dropzone-tip">
+                    建议高分辨率平面/鸟瞰图，支持最大 100MB 直传（可选，展馆类无地图可不上传）
+                  </div>
+                </template>
               </div>
             </el-upload>
           </div>
         </el-form-item>
+
+        <!-- 🌟 脚底补地遮罩 (全局默认应用于当前园区所有场景) -->
+        <NadirConfigPanel
+          v-model="form.nadirConfig"
+          :is-scene-level="false"
+          title="园区全局脚底补地遮罩 (Nadir Patch)"
+        />
 
         <el-form-item label="园区/分类简介">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="简要描述该园区或展区特色..." maxlength="255"
@@ -230,6 +246,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { vrApi } from '@/api/vr'
+import NadirConfigPanel from './components/NadirConfigPanel.vue'
 
 const router = useRouter()
 
@@ -266,6 +283,7 @@ const form = reactive({
   code: '',
   mapUrl: '',
   description: '',
+  nadirConfig: '',
   sort: 1,
   status: 1
 })
@@ -309,6 +327,17 @@ function openAddDialog() {
   form.code = ''
   form.mapUrl = ''
   form.description = ''
+  form.nadirConfig = JSON.stringify({
+    nadirEnabled: 1,
+    type: 'stamp',
+    nadirRadius: 16,
+    nadirText: 'genting拍摄',
+    nadirSubText: '720° SPATIAL PANORAMA',
+    nadirCenterText: '720°',
+    nadirBgColor: 'rgba(11, 19, 41, 0.90)',
+    nadirTextColor: '#38bdf8',
+    nadirBorderColor: '#38bdf8'
+  })
   form.sort = (categoryList.value.length + 1) * 10
   form.status = 1
   dialogVisible.value = true
@@ -322,6 +351,7 @@ function openEditDialog(row) {
   form.code = row.code
   form.mapUrl = row.mapUrl || ''
   form.description = row.description || ''
+  form.nadirConfig = row.nadirConfig || ''
   form.sort = row.sort || 0
   form.status = row.status !== undefined ? row.status : 1
   dialogVisible.value = true
@@ -329,6 +359,7 @@ function openEditDialog(row) {
 
 // 地图底图直传 R2
 async function handleMapUpload(options) {
+  if (uploadingMap.value) return
   const file = options.file
   uploadingMap.value = true
   try {
@@ -338,7 +369,8 @@ async function handleMapUpload(options) {
       ElMessage.success('底图已成功上传至 Cloudflare R2！')
     }
   } catch (err) {
-    ElMessage.error('底图上传失败，请重试')
+    console.error('底图上传失败:', err)
+    ElMessage.error(err?.response?.data?.message || err?.message || '底图上传失败，请重试')
   } finally {
     uploadingMap.value = false
   }
@@ -356,6 +388,7 @@ function handleSubmit() {
           code: form.code,
           mapUrl: form.mapUrl,
           description: form.description,
+          nadirConfig: form.nadirConfig,
           sort: form.sort,
           status: form.status
         })
@@ -366,6 +399,7 @@ function handleSubmit() {
           code: form.code,
           mapUrl: form.mapUrl,
           description: form.description,
+          nadirConfig: form.nadirConfig,
           sort: form.sort,
           status: form.status
         })
