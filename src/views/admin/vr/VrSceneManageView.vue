@@ -64,14 +64,24 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="全景原图 (Cloudflare R2)" min-width="200" show-overflow-tooltip>
+        <el-table-column label="全景与秒开底图 (R2)" min-width="220">
           <template #default="{ row }">
-            <a :href="row.panoramaUrl" target="_blank" class="panorama-link">
-              <el-icon>
-                <PictureFilled />
-              </el-icon>
-              <span>{{ row.panoramaUrl }}</span>
-            </a>
+            <div class="pano-col-cell">
+              <a :href="row.panoramaUrl" target="_blank" class="panorama-link" :title="row.panoramaUrl">
+                <el-icon>
+                  <PictureFilled />
+                </el-icon>
+                <span class="url-text">{{ row.panoramaUrl }}</span>
+              </a>
+              <div class="lqip-badge-wrap">
+                <el-tag v-if="row.lowResUrl" size="small" type="success" effect="light" class="lqip-tag">
+                  ⚡ 秒开底图已就绪 (~30KB)
+                </el-tag>
+                <el-tag v-else size="small" type="warning" effect="light" class="lqip-tag">
+                  未生成秒开底图
+                </el-tag>
+              </div>
+            </div>
           </template>
         </el-table-column>
 
@@ -203,6 +213,83 @@
                 </template>
               </div>
             </el-upload>
+          </div>
+        </el-form-item>
+
+        <!-- ⚡ 渐进式秒开低清全景底图 (LQIP: 1024×512, 约 30KB) -->
+        <el-form-item label="秒开低清底图" prop="lowResUrl">
+          <div class="custom-upload-wrapper">
+            <!-- 已就绪状态 -->
+            <div
+              v-if="form.lowResUrl"
+              class="upload-image-card low-card"
+              v-loading="uploadingLowRes || compressingLowRes"
+              element-loading-text="正在处理..."
+              element-loading-background="rgba(255, 255, 255, 0.85)"
+            >
+              <el-image :src="form.lowResUrl" fit="cover" class="card-img" :preview-src-list="[form.lowResUrl]"
+                preview-teleported />
+              <div class="card-mask">
+                <div class="mask-action-list">
+                  <span class="mask-action-btn" title="查看低清底图" @click="openImagePreview(form.lowResUrl)">
+                    <el-icon :size="16"><ZoomIn /></el-icon>
+                    <span>预览</span>
+                  </span>
+                  <el-upload
+                    class="reupload-trigger"
+                    :show-file-list="false"
+                    :http-request="handleLowResUpload"
+                    :disabled="uploadingLowRes"
+                    accept="image/*"
+                  >
+                    <span class="mask-action-btn" title="手动上传替换">
+                      <el-icon :size="16"><Refresh /></el-icon>
+                      <span>替换</span>
+                    </span>
+                  </el-upload>
+                  <span class="mask-action-btn danger-btn" title="移除低清图" @click="form.lowResUrl = ''">
+                    <el-icon :size="16"><Delete /></el-icon>
+                    <span>删除</span>
+                  </span>
+                </div>
+              </div>
+              <div class="card-status-badge lqip-status-badge">
+                <el-icon><Lightning /></el-icon>
+                <span>秒开底图已就绪 (~30KB)</span>
+              </div>
+            </div>
+
+            <!-- 未生成低清图状态 -->
+            <div v-else class="lqip-empty-card" v-loading="compressingLowRes" element-loading-text="正在生成低清底图...">
+              <div class="lqip-empty-content">
+                <el-icon class="lqip-icon"><Lightning /></el-icon>
+                <div class="lqip-tip-info">
+                  <span class="lqip-title">渐进式秒开全景底图 (LQIP, ~30KB)</span>
+                  <span class="lqip-desc">上传原图时浏览器会自动本地压缩生成；进入全景时 0.05s 极速秒开消除等待。</span>
+                </div>
+                <div class="lqip-actions">
+                  <el-button
+                    v-if="form.panoramaUrl"
+                    type="primary"
+                    size="small"
+                    icon="MagicStick"
+                    :loading="compressingLowRes"
+                    @click="generateLowResFromCurrentPano"
+                  >
+                    从原图一键自动提取
+                  </el-button>
+                  <el-upload
+                    class="manual-lqip-upload"
+                    :show-file-list="false"
+                    :http-request="handleLowResUpload"
+                    :disabled="uploadingLowRes"
+                    accept="image/*"
+                  >
+                    <el-button size="small" icon="Upload">手动上传</el-button>
+                  </el-upload>
+                </div>
+              </div>
+            </div>
           </div>
         </el-form-item>
 
@@ -376,6 +463,8 @@ const isEdit = ref(false)
 const submitting = ref(false)
 const uploadingPano = ref(false)
 const uploadingPreview = ref(false)
+const uploadingLowRes = ref(false)
+const compressingLowRes = ref(false)
 const formRef = ref(null)
 
 const form = reactive({
@@ -383,6 +472,7 @@ const form = reactive({
   categoryId: null,
   name: '',
   panoramaUrl: '',
+  lowResUrl: '',
   previewUrl: '',
   leftPercent: 0,
   topPercent: 0,
@@ -440,6 +530,7 @@ function openAddDialog() {
   form.categoryId = queryForm.categoryId || (categoryOptions.value[0]?.id ?? null)
   form.name = ''
   form.panoramaUrl = ''
+  form.lowResUrl = ''
   form.previewUrl = ''
   form.leftPercent = 50.00
   form.topPercent = 50.00
@@ -457,6 +548,7 @@ function openEditDialog(row) {
   form.categoryId = row.categoryId
   form.name = row.name
   form.panoramaUrl = row.panoramaUrl
+  form.lowResUrl = row.lowResUrl || ''
   form.previewUrl = row.previewUrl || ''
   form.leftPercent = Number(row.leftPercent) || 0
   form.topPercent = Number(row.topPercent) || 0
@@ -467,23 +559,140 @@ function openEditDialog(row) {
   dialogVisible.value = true
 }
 
-// 上传全景图直传 R2
+/**
+ * 客户端 Canvas 高性能压缩生成全景超轻低清秒开图 (1024x512, 质量 0.35, ~30KB)
+ * 纯客户端本地计算，支持传入 File 对象或线上图片 URL
+ */
+function compressToLowResPano(source, originalName = 'panorama.webp') {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = 1024
+        canvas.height = 512
+        const ctx = canvas.getContext('2d')
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'medium'
+        ctx.drawImage(img, 0, 0, 1024, 512)
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            // 若不支持 webp 则降级为 jpeg
+            canvas.toBlob((jpegBlob) => {
+              if (!jpegBlob) return reject(new Error('Canvas 导出低清底图失败'))
+              const fileName = 'low_' + originalName.replace(/\.[^/.]+$/, '') + '.jpg'
+              resolve(new File([jpegBlob], fileName, { type: 'image/jpeg' }))
+            }, 'image/jpeg', 0.4)
+            return
+          }
+          const fileName = 'low_' + originalName.replace(/\.[^/.]+$/, '') + '.webp'
+          resolve(new File([blob], fileName, { type: 'image/webp' }))
+        }, 'image/webp', 0.35)
+      } catch (err) {
+        reject(err)
+      }
+    }
+
+    img.onerror = () => reject(new Error('图片载入失败，无法生成低清图'))
+
+    if (source instanceof File || source instanceof Blob) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        img.src = e.target.result
+      }
+      reader.onerror = () => reject(new Error('读取文件失败'))
+      reader.readAsDataURL(source)
+    } else if (typeof source === 'string') {
+      img.src = source
+    } else {
+      reject(new Error('不支持的图片来源'))
+    }
+  })
+}
+
+// 上传全景图直传 R2（并自动客户端压制生成低清秒开底图）
 async function handlePanoramaUpload(options) {
   if (uploadingPano.value) return
   const file = options.file
   uploadingPano.value = true
+  compressingLowRes.value = true
   try {
-    const res = await vrApi.uploadImage(file, 'vr_panorama')
-    if (res.data) {
-      form.panoramaUrl = res.data
+    // 1. 客户端离屏 Canvas 本地并发压制 1024x512 超轻低清图 (约 30KB)
+    let lowResUploadTask = null
+    try {
+      const lowResFile = await compressToLowResPano(file, file.name)
+      lowResUploadTask = vrApi.uploadImage(lowResFile, 'vr_panorama_low')
+    } catch (compressErr) {
+      console.warn('本地低清底图自动压制跳过:', compressErr)
+    }
+
+    // 2. 原图直传 Cloudflare R2
+    const panoUploadTask = vrApi.uploadImage(file, 'vr_panorama')
+
+    const [panoRes, lowResResult] = await Promise.allSettled([
+      panoUploadTask,
+      lowResUploadTask
+    ])
+
+    if (panoRes.status === 'fulfilled' && panoRes.value?.data) {
+      form.panoramaUrl = panoRes.value.data
       formRef.value?.clearValidate('panoramaUrl')
       ElMessage.success('360 全景原图已成功上传到 Cloudflare R2！')
+    } else {
+      throw (panoRes.reason || new Error('全景原图上传失败'))
+    }
+
+    if (lowResResult && lowResResult.status === 'fulfilled' && lowResResult.value?.data) {
+      form.lowResUrl = lowResResult.value.data
+      ElMessage.success('⚡ 渐进式秒开低清底图(~30KB)已自动生成并就绪！')
     }
   } catch (err) {
     console.error('全景原图上传失败:', err)
     ElMessage.error(err?.response?.data?.message || err?.message || '全景原图上传失败，请重试')
   } finally {
     uploadingPano.value = false
+    compressingLowRes.value = false
+  }
+}
+
+// 手动上传低清秒开图直传 R2
+async function handleLowResUpload(options) {
+  if (uploadingLowRes.value) return
+  const file = options.file
+  uploadingLowRes.value = true
+  try {
+    const res = await vrApi.uploadImage(file, 'vr_panorama_low')
+    if (res.data) {
+      form.lowResUrl = res.data
+      ElMessage.success('低清秒开底图已成功上传！')
+    }
+  } catch (err) {
+    console.error('低清底图上传失败:', err)
+    ElMessage.error(err?.response?.data?.message || err?.message || '低清底图上传失败，请重试')
+  } finally {
+    uploadingLowRes.value = false
+  }
+}
+
+// 从当前已有的全景原图一键自动提取生成低清底图
+async function generateLowResFromCurrentPano() {
+  if (!form.panoramaUrl) return
+  compressingLowRes.value = true
+  try {
+    const lowResFile = await compressToLowResPano(form.panoramaUrl, 'scene_pano.webp')
+    const res = await vrApi.uploadImage(lowResFile, 'vr_panorama_low')
+    if (res.data) {
+      form.lowResUrl = res.data
+      ElMessage.success('⚡ 已成功从原图提取生成渐进式秒开底图！')
+    }
+  } catch (err) {
+    console.error('提取低清底图失败:', err)
+    ElMessage.error('从原图提取失败，请检查原图是否可跨域访问，或手动上传')
+  } finally {
+    compressingLowRes.value = false
   }
 }
 
@@ -637,6 +846,28 @@ onMounted(async () => {
   justify-content: center;
 }
 
+.pano-col-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.url-text {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lqip-badge-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.lqip-tag {
+  font-size: 11px;
+}
+
 .custom-upload-wrapper {
   width: 100%;
 }
@@ -656,8 +887,68 @@ onMounted(async () => {
   height: 160px;
 }
 
+.low-card {
+  height: 140px;
+}
+
 .thumb-card {
   height: 110px;
+}
+
+.lqip-status-badge {
+  background: rgba(14, 165, 233, 0.92) !important;
+}
+
+.lqip-empty-card {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  transition: all 0.2s ease;
+}
+
+.lqip-empty-card:hover {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+}
+
+.lqip-empty-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lqip-icon {
+  font-size: 26px;
+  color: #0284c7;
+}
+
+.lqip-tip-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.lqip-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.lqip-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.lqip-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .card-img {
