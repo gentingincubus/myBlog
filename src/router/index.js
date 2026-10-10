@@ -50,9 +50,7 @@ const routes = [
       },
       {
         path: 'carousel',
-        name: 'admin-carousel',
-        component: () => import('@/views/admin/carousel/CarouselManageView.vue'),
-        meta: { title: '轮播图管理', requiresAuth: true, perms: 'site:carousel:list' }
+        redirect: '/admin/vr/carousel'
       },
       {
         path: 'lab',
@@ -77,6 +75,12 @@ const routes = [
         name: 'admin-vr-editor',
         component: () => import('@/views/admin/vr/VrMapEditorView.vue'),
         meta: { title: 'VR打点编辑器', requiresAuth: true, perms: 'vr:editor:view' }
+      },
+      {
+        path: 'vr/carousel',
+        name: 'admin-vr-carousel',
+        component: () => import('@/views/admin/carousel/CarouselManageView.vue'),
+        meta: { title: '轮播管理', requiresAuth: true, perms: 'site:carousel:list' }
       },
       // 🌟 系统管理子模块
       {
