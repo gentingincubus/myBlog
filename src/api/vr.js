@@ -126,6 +126,28 @@ export function deleteVrSceneApi(id) {
   })
 }
 
+/**
+ * 管理后台 - 手动触发全景瓦片切片任务
+ * @param {string|number} id 场景 ID
+ */
+export function generateVrSceneTilesApi(id) {
+  return request({
+    url: `/admin/vr/scene/${id}/generate-tiles`,
+    method: 'post'
+  })
+}
+
+/**
+ * 管理后台 - 查询场景全景瓦片切片实时进度与错误诊断信息
+ * @param {string|number} id 场景 ID
+ */
+export function getVrSceneTileProgressApi(id) {
+  return request({
+    url: `/admin/vr/scene/${id}/tile-progress`,
+    method: 'get'
+  })
+}
+
 // ==========================================
 // 3. 前台门户 / 访客端 - VR 全景漫游 API (公开免登)
 // ==========================================
@@ -209,6 +231,8 @@ export const vrApi = {
   addScene: addVrSceneApi,
   updateScene: updateVrSceneApi,
   deleteScene: deleteVrSceneApi,
+  generateTiles: generateVrSceneTilesApi,
+  tileProgress: getVrSceneTileProgressApi,
   // 访客门户端 (免登)
   portalCategoryList: getPortalVrCategoryListApi,
   portalCategoryDetail: getPortalVrCategoryDetailApi,

@@ -153,11 +153,25 @@
         class="storage-table"
       >
         <!-- 缩略预览 -->
-        <el-table-column label="文件预览" width="90" align="center">
+        <el-table-column label="文件预览" width="96" align="center">
           <template #default="{ row }">
             <div class="preview-cell">
+              <!-- 大图流量保护：>= 1MB (1048576 字节) 时不主动发起网络加载，点击再全屏预览 -->
+              <el-tooltip
+                v-if="isImageFile(row.key) && isLargeFile(row.size)"
+                :content="`大文件 (${row.sizeFormatted})，已启用防刷流与性能保护，点击查看大图`"
+                placement="top"
+              >
+                <div class="large-file-placeholder" @click="openViewer(row.url)">
+                  <el-icon class="placeholder-icon"><PictureFilled /></el-icon>
+                  <span class="placeholder-text">大图</span>
+                  <span class="placeholder-badge">防刷流</span>
+                </div>
+              </el-tooltip>
+
+              <!-- 小于 1MB 的轻量图片：正常懒加载缩略图 -->
               <el-image
-                v-if="isImageFile(row.key)"
+                v-else-if="isImageFile(row.key)"
                 :src="row.url"
                 :preview-src-list="[row.url]"
                 fit="cover"
@@ -171,6 +185,8 @@
                   </div>
                 </template>
               </el-image>
+
+              <!-- 非图片文件 (如配置、文本等) -->
               <el-icon v-else :size="24" class="file-icon"><Document /></el-icon>
             </div>
           </template>
@@ -229,8 +245,17 @@
         </el-table-column>
 
         <!-- 操作 -->
-        <el-table-column label="操作" width="160" align="center" fixed="right">
+        <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
+            <el-button
+              v-if="isImageFile(row.key)"
+              link
+              type="primary"
+              icon="View"
+              @click="openViewer(row.url)"
+            >
+              预览
+            </el-button>
             <el-button link type="primary" icon="Link" @click="copyText(row.url)">
               复制链接
             </el-button>
@@ -260,6 +285,14 @@
         />
       </div>
     </el-card>
+
+    <!-- 🌟 全屏大图预览查看器 (按需触发，打开时才拉取网络大图，平时 0 流量消耗) -->
+    <el-image-viewer
+      v-if="isViewerOpen"
+      :url-list="[previewViewerUrl]"
+      teleported
+      @close="isViewerOpen = false"
+    />
   </div>
 </template>
 
@@ -348,6 +381,29 @@ const pagedFiles = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filteredFiles.value.slice(start, start + pageSize.value)
 })
+
+// 🌟 流量优化阈值：超过 1MB (1048576 字节) 的大图默认不加载缩略图，避免并发请求原图耗费流量与造成卡顿
+const LARGE_FILE_THRESHOLD = 1048576
+
+// 全屏大图预览查看器状态
+const isViewerOpen = ref(false)
+const previewViewerUrl = ref('')
+
+/**
+ * 判断文件是否为超过 1MB 的大文件
+ */
+function isLargeFile(size) {
+  return (size || 0) >= LARGE_FILE_THRESHOLD
+}
+
+/**
+ * 打开全屏大图预览
+ */
+function openViewer(url) {
+  if (!url) return
+  previewViewerUrl.value = url
+  isViewerOpen.value = true
+}
 
 /**
  * 排序文件大小
@@ -675,12 +731,70 @@ onMounted(() => {
   justify-content: center;
 }
 
+/* 🌟 大图防刷流占位卡片样式 */
+.large-file-placeholder {
+  width: 54px;
+  height: 52px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.large-file-placeholder:hover {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.15);
+}
+
+.placeholder-icon {
+  font-size: 16px;
+  color: #64748b;
+  margin-bottom: 2px;
+  transition: color 0.2s;
+}
+
+.large-file-placeholder:hover .placeholder-icon {
+  color: #2563eb;
+}
+
+.placeholder-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.1;
+  transition: color 0.2s;
+}
+
+.large-file-placeholder:hover .placeholder-text {
+  color: #2563eb;
+}
+
+.placeholder-badge {
+  font-size: 9px;
+  color: #f59e0b;
+  font-weight: 700;
+  transform: scale(0.85);
+  line-height: 1;
+  margin-top: 1px;
+}
+
 .thumb-image {
   width: 50px;
   height: 50px;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
 }
 
 .image-slot-error {
