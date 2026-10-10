@@ -52,6 +52,15 @@ export function deleteMenuApi(id) {
   })
 }
 
+/** 批量更新菜单排序权重 (拖拽排序) */
+export function updateMenuSortApi(data) {
+  return request({
+    url: '/admin/system/menu/sort',
+    method: 'put',
+    data
+  })
+}
+
 // ==================== 角色管理 ====================
 
 /** 获取角色列表 */

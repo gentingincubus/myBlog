@@ -64,7 +64,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="全景与秒开底图 (R2)" min-width="220">
+        <el-table-column label="全景与多分辨率瓦片 (R2)" min-width="240">
           <template #default="{ row }">
             <div class="pano-col-cell">
               <a :href="row.panoramaUrl" target="_blank" class="panorama-link" :title="row.panoramaUrl">
@@ -75,10 +75,67 @@
               </a>
               <div class="lqip-badge-wrap">
                 <el-tag v-if="row.lowResUrl" size="small" type="success" effect="light" class="lqip-tag">
-                  ⚡ 秒开底图已就绪 (~30KB)
+                  ⚡ 秒开就绪
                 </el-tag>
                 <el-tag v-else size="small" type="warning" effect="light" class="lqip-tag">
-                  未生成秒开底图
+                  未生成秒开图
+                </el-tag>
+
+                <!-- 🌟 瓦片状态与实时进度展示 -->
+                <!-- 情况 1: 瓦片生成中 (展开微型动态进度条与步骤，点击可查看看板) -->
+                <div
+                  v-if="row.tileStatus === 1"
+                  class="tiling-progress-pill"
+                  title="点击打开详细切片监控看板"
+                  @click="openTileProgressDialog(row)"
+                >
+                  <div class="pill-top">
+                    <span class="pill-label">
+                      <el-icon class="is-loading"><Loading /></el-icon>
+                      切片中
+                    </span>
+                    <span class="pill-percent">{{ row._progress?.percent || 0 }}%</span>
+                  </div>
+                  <el-progress
+                    :percentage="row._progress?.percent || 0"
+                    :stroke-width="4"
+                    :show-text="false"
+                    class="pill-progress-bar"
+                  />
+                  <span class="pill-step-text" :title="row._progress?.step">
+                    {{ row._progress?.step || '提交处理中...' }}
+                  </span>
+                </div>
+
+                <!-- 情况 2: 瓦片切片失败 (显眼警示，点击弹窗查看精准失败原因与重试) -->
+                <el-tag
+                  v-else-if="row.tileStatus === 3"
+                  size="small"
+                  type="danger"
+                  effect="plain"
+                  class="lqip-tag clickable-tag"
+                  title="切片异常中止，点击查看失败原因与诊断"
+                  @click="openTileProgressDialog(row)"
+                >
+                  <el-icon><WarningFilled /></el-icon> 切片失败 · 看原因
+                </el-tag>
+
+                <!-- 情况 3: 瓦片已就绪 -->
+                <el-tag
+                  v-else-if="row.tileStatus === 2 || row.hasTiles === 1"
+                  size="small"
+                  type="success"
+                  effect="plain"
+                  class="lqip-tag clickable-tag"
+                  title="瓦片网格已就绪，点击查看瓦片配置"
+                  @click="openTileProgressDialog(row)"
+                >
+                  🧩 瓦片已就绪
+                </el-tag>
+
+                <!-- 情况 4: 未切片 -->
+                <el-tag v-else size="small" type="info" effect="plain" class="lqip-tag">
+                  未切片
                 </el-tag>
               </div>
             </div>
@@ -110,10 +167,22 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="220" fixed="right" align="center">
+        <el-table-column label="操作" width="290" fixed="right" align="center">
           <template #default="{ row }">
             <el-button type="warning" link size="small" icon="Location" @click="goToMapEditor(row.categoryId, row.id)">
               定位打点
+            </el-button>
+            <el-button
+              type="primary"
+              link
+              size="small"
+              icon="Grid"
+              :disabled="row.tileStatus === 1"
+              :loading="row._generatingTiles"
+              v-hasPermi="['vr:scene:edit']"
+              @click="handleGenerateTiles(row)"
+            >
+              {{ row.tileStatus === 1 ? '切片中' : (row.hasTiles === 1 ? '重切瓦片' : '生成瓦片') }}
             </el-button>
             <el-button type="primary" link size="small" icon="Edit" v-hasPermi="['vr:scene:edit']"
               @click="openEditDialog(row)">
@@ -418,13 +487,127 @@
     </el-dialog>
     <!-- 大图放大查看器 (支持点开全屏看大图、缩放、旋转) -->
     <el-image-viewer v-if="isViewerOpen" :url-list="[previewViewerUrl]" @close="isViewerOpen = false" />
+
+    <!-- 🌟 瓦片切片进度与失败诊断看板弹窗 -->
+    <el-dialog
+      v-model="tileDialogVisible"
+      :title="tileDialogTitle"
+      width="580px"
+      append-to-body
+      destroy-on-close
+    >
+      <div v-loading="tileDialogLoading" class="tile-diag-container">
+        <!-- 头部场景简要信息 -->
+        <div class="tile-diag-header">
+          <div class="diag-scene-title">
+            <el-icon class="mr-1"><PictureFilled /></el-icon>
+            <span>场景：<strong>{{ currentDiagScene?.name }}</strong></span>
+          </div>
+          <el-tag :type="getTileTagType(currentDiagProgress?.status)" size="small">
+            {{ getTileStatusText(currentDiagProgress?.status) }}
+          </el-tag>
+        </div>
+
+        <!-- 进度条区域 -->
+        <div class="tile-diag-progress-box">
+          <div class="progress-labels">
+            <span class="step-desc">{{ currentDiagProgress?.step || '准备切片中...' }}</span>
+            <span class="percent-num">{{ currentDiagProgress?.percent || 0 }}%</span>
+          </div>
+          <el-progress
+            :percentage="currentDiagProgress?.percent || 0"
+            :status="currentDiagProgress?.status === 3 ? 'exception' : (currentDiagProgress?.status === 2 ? 'success' : '')"
+            :stroke-width="12"
+            :striped="currentDiagProgress?.status === 1"
+            :striped-flow="currentDiagProgress?.status === 1"
+          />
+        </div>
+
+        <!-- 详细数据指标网格 -->
+        <div class="tile-diag-stats-grid">
+          <div class="diag-stat-item">
+            <span class="stat-k">瓦片上传进度</span>
+            <span class="stat-v">
+              <strong>{{ currentDiagProgress?.uploadedTiles || 0 }}</strong>
+              <span class="stat-slash">/</span>
+              {{ currentDiagProgress?.totalTiles || '-' }} 块
+            </span>
+          </div>
+          <div class="diag-stat-item">
+            <span class="stat-k">当前处理面</span>
+            <span class="stat-v">{{ currentDiagProgress?.currentFace ? formatFaceName(currentDiagProgress?.currentFace) : '等距柱状原图' }}</span>
+          </div>
+          <div class="diag-stat-item">
+            <span class="stat-k">累计耗时</span>
+            <span class="stat-v">{{ currentDiagProgress?.costSeconds || 0 }} 秒</span>
+          </div>
+          <div class="diag-stat-item">
+            <span class="stat-k">更新时间</span>
+            <span class="stat-v">{{ formatTime(currentDiagProgress?.updateTime) }}</span>
+          </div>
+        </div>
+
+        <!-- 如果失败：红色显眼警示卡片与排查建议 -->
+        <div v-if="currentDiagProgress?.status === 3" class="tile-diag-error-box">
+          <div class="error-box-title">
+            <el-icon><WarningFilled /></el-icon>
+            <span>切片中止 / 异常原因诊断：</span>
+          </div>
+          <div class="error-msg-content">
+            <code>{{ currentDiagProgress?.errorMessage || '未知异常（请检查后端服务器日志或网络连接）' }}</code>
+          </div>
+          <div class="error-tips">
+            <div class="tips-title">💡 常见排查与处理建议：</div>
+            <ul>
+              <li><strong>原图网络访问受限</strong>：请检查 Cloudflare R2 原图公网访问是否正常，防盗链配置是否拦截了后端服务器 IP；</li>
+              <li><strong>原图非标准球形等距柱状图</strong>：VR 切片算法要求图片为 2:1 等距全景展开图（推荐 4096×2048 或 8192×4096）；</li>
+              <li><strong>网络波动或超时</strong>：可尝试点击下方【重新切片】再次触发后台流水线。</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 如果已就绪：成功信息与前缀 -->
+        <div v-else-if="currentDiagProgress?.status === 2" class="tile-diag-success-box">
+          <el-alert
+            type="success"
+            :closable="false"
+            show-icon
+            title="瓦片网格已就绪"
+            :description="`瓦片已全部分发至 Cloudflare R2，访客进入该场景将享受毫秒级自适应高清瓦片加载！路径：${currentDiagProgress?.tilePrefix || currentDiagScene?.tilePrefix || '-'}`"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="tileDialogVisible = false">关闭</el-button>
+          <el-button
+            v-if="currentDiagProgress?.status === 3 || currentDiagProgress?.status === 2"
+            type="primary"
+            icon="Refresh"
+            :loading="currentDiagScene?._generatingTiles"
+            @click="handleRetryFromDialog"
+          >
+            {{ currentDiagProgress?.status === 3 ? '重新切片' : '重新生成瓦片' }}
+          </el-button>
+          <el-button
+            v-else-if="currentDiagProgress?.status === 1"
+            type="primary"
+            icon="Refresh"
+            @click="refreshTileProgress(currentDiagScene?.id)"
+          >
+            刷新进度
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { vrApi } from '@/api/vr'
 import NadirConfigPanel from './components/NadirConfigPanel.vue'
 
@@ -498,17 +681,180 @@ async function fetchCategories() {
   } catch (err) { }
 }
 
+// ==========================================
+// 瓦片切片进度与失败诊断弹窗控制
+// ==========================================
+const tileDialogVisible = ref(false)
+const tileDialogLoading = ref(false)
+const currentDiagScene = ref(null)
+const currentDiagProgress = ref(null)
+
+const tileDialogTitle = computed(() => {
+  if (!currentDiagScene.value) return '瓦片切片监控'
+  return `瓦片切片监控 - ${currentDiagScene.value.name}`
+})
+
+async function openTileProgressDialog(row) {
+  currentDiagScene.value = row
+  tileDialogVisible.value = true
+  await refreshTileProgress(row.id)
+}
+
+async function refreshTileProgress(sceneId) {
+  if (!sceneId) return
+  tileDialogLoading.value = true
+  try {
+    const res = await vrApi.tileProgress(sceneId)
+    if (res && res.data) {
+      currentDiagProgress.value = res.data
+      if (currentDiagScene.value) {
+        currentDiagScene.value._progress = res.data
+        if (res.data.status !== undefined) {
+          currentDiagScene.value.tileStatus = res.data.status
+        }
+      }
+    }
+  } catch (err) {
+    ElMessage.error('获取瓦片进度详情失败')
+  } finally {
+    tileDialogLoading.value = false
+  }
+}
+
+async function handleRetryFromDialog() {
+  if (!currentDiagScene.value) return
+  tileDialogVisible.value = false
+  await handleGenerateTiles(currentDiagScene.value)
+}
+
+function formatFaceName(face) {
+  const map = {
+    f: '前 (Front)',
+    b: '后 (Back)',
+    l: '左 (Left)',
+    r: '右 (Right)',
+    u: '上 (Top)',
+    d: '下 (Bottom)'
+  }
+  return map[face] || face
+}
+
+function getTileTagType(status) {
+  switch (status) {
+    case 1: return 'primary'
+    case 2: return 'success'
+    case 3: return 'danger'
+    default: return 'info'
+  }
+}
+
+function getTileStatusText(status) {
+  switch (status) {
+    case 1: return '切片处理中'
+    case 2: return '已成功就绪'
+    case 3: return '切片失败/中止'
+    default: return '未切片'
+  }
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) return '-'
+  const d = new Date(timestamp)
+  return d.toLocaleTimeString()
+}
+
+// ==========================================
+// 实时轮询机制：列表同步 + 切片进度平滑更新
+// ==========================================
+let pollTimer = null
+
+async function pollProgressForProcessingScenes() {
+  const processingItems = sceneList.value.filter(item => item.tileStatus === 1)
+  if (processingItems.length === 0) return
+
+  await Promise.all(
+    processingItems.map(async item => {
+      try {
+        const pRes = await vrApi.tileProgress(item.id)
+        if (pRes && pRes.data) {
+          item._progress = pRes.data
+          if (pRes.data.status !== undefined && pRes.data.status !== 1) {
+            item.tileStatus = pRes.data.status
+          }
+          if (currentDiagScene.value && currentDiagScene.value.id === item.id) {
+            currentDiagProgress.value = pRes.data
+          }
+        }
+      } catch (e) {}
+    })
+  )
+}
+
+function checkAndStartPolling() {
+  const hasProcessing = sceneList.value.some(item => item.tileStatus === 1)
+  if (hasProcessing && !pollTimer) {
+    pollProgressForProcessingScenes()
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await vrApi.sceneList(queryForm)
+        if (res.data) {
+          const progressMap = {}
+          sceneList.value.forEach(item => {
+            if (item._progress) progressMap[item.id] = item._progress
+          })
+
+          sceneList.value = res.data.map(newItem => {
+            if (progressMap[newItem.id]) {
+              newItem._progress = progressMap[newItem.id]
+            }
+            return newItem
+          })
+
+          await pollProgressForProcessingScenes()
+
+          const stillProcessing = sceneList.value.some(item => item.tileStatus === 1)
+          if (!stillProcessing) {
+            stopPolling()
+          }
+        }
+      } catch (e) {
+        stopPolling()
+      }
+    }, 2000)
+  } else if (!hasProcessing && pollTimer) {
+    stopPolling()
+  }
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
 // 获取场景列表
-async function fetchScenes() {
-  loading.value = true
+async function fetchScenes(silent = false) {
+  if (!silent) loading.value = true
   try {
     const res = await vrApi.sceneList(queryForm)
     if (res.data) {
       sceneList.value = res.data
+      checkAndStartPolling()
+      // 预拉取失败或进行中场景的进度信息
+      sceneList.value.forEach(item => {
+        if (item.tileStatus === 3 || item.tileStatus === 1) {
+          vrApi.tileProgress(item.id).then(pRes => {
+            if (pRes && pRes.data) {
+              item._progress = pRes.data
+            }
+          }).catch(() => {})
+        }
+      })
     }
   } catch (err) {
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -757,6 +1103,29 @@ function goToMapEditor(categoryId, sceneId) {
   })
 }
 
+// 手动触发生成瓦片切片
+async function handleGenerateTiles(row) {
+  row._generatingTiles = true
+  try {
+    await vrApi.generateTiles(row.id)
+    ElMessage.success(`场景【${row.name}】瓦片切片任务已提交后台处理！`)
+    row.tileStatus = 1
+    row._progress = {
+      status: 1,
+      percent: 5,
+      step: '切片任务已提交线程池排队...',
+      uploadedTiles: 0,
+      totalTiles: 0,
+      costSeconds: 0
+    }
+    checkAndStartPolling()
+  } catch (err) {
+    console.error('提交切片任务失败:', err)
+  } finally {
+    row._generatingTiles = false
+  }
+}
+
 onMounted(async () => {
   await fetchCategories()
   // 支持路由传入初始 categoryId (例如从分类列表点进来)
@@ -764,6 +1133,10 @@ onMounted(async () => {
     queryForm.categoryId = String(route.query.categoryId)
   }
   fetchScenes()
+})
+
+onBeforeUnmount(() => {
+  stopPolling()
 })
 </script>
 
@@ -1085,5 +1458,217 @@ onMounted(async () => {
 .dropzone-tip {
   font-size: 12px;
   color: #94a3b8;
+}
+
+/* ==========================================
+   瓦片切片进度与诊断看板样式
+   ========================================== */
+.clickable-tag {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-tag:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.95);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.tiling-progress-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: #f0f7ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  min-width: 140px;
+  max-width: 190px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.tiling-progress-pill:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+  box-shadow: 0 2px 6px rgba(56, 189, 248, 0.2);
+  transform: translateY(-1px);
+}
+
+.pill-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.pill-label {
+  font-weight: 600;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pill-percent {
+  font-weight: 700;
+  color: #0369a1;
+  font-family: monospace;
+}
+
+.pill-progress-bar {
+  margin: 1px 0;
+}
+
+.pill-step-text {
+  font-size: 10px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+/* 弹窗内部样式 */
+.tile-diag-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.tile-diag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  border-radius: 6px;
+}
+
+.diag-scene-title {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.tile-diag-progress-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.step-desc {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.percent-num {
+  font-size: 16px;
+  font-weight: 700;
+  color: #3b82f6;
+  font-family: monospace;
+}
+
+.tile-diag-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.diag-stat-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-k {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.stat-v {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.stat-v strong {
+  color: #3b82f6;
+  font-size: 15px;
+}
+
+.stat-slash {
+  margin: 0 3px;
+  color: #94a3b8;
+}
+
+.tile-diag-error-box {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.error-box-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 8px;
+}
+
+.error-msg-content {
+  background: #fef2f2;
+  border: 1px dashed #f87171;
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.error-msg-content code {
+  color: #b91c1c;
+  font-size: 12px;
+  word-break: break-all;
+  white-space: pre-wrap;
+  font-family: monospace;
+}
+
+.error-tips {
+  font-size: 12px;
+  color: #7f1d1d;
+  line-height: 1.6;
+}
+
+.tips-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.error-tips ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.tile-diag-success-box {
+  margin-top: 4px;
 }
 </style>
